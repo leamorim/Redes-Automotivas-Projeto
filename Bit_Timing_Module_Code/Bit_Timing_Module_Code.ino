@@ -26,6 +26,7 @@ struct TQout // Return struct of TQ_Configurator function
    float TQ_Time; // Time of TQ in miliseconds*
 };  
 
+// será q n seria interessante deixar esse função só no setup ?
 struct TQout TQ_Configurator() // Module of TQ Configuration
 {
   unsigned int TQ_Length,L_SEG1;
