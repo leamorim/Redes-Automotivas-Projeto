@@ -60,7 +60,16 @@ void Inc_Count(){
   Serial.println(count);
 }
 
+void Plotter(){
+   //Serial.print("STATE:");
+  Serial.print(STATE-3);
+  Serial.print(",");
+  //Serial.print("Count:");
+  Serial.println(count);
+}
+
 void UC(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
+  Plotter();
     switch(STATE){
       case SYNC:{
         if(count == L_SYNC){
