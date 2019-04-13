@@ -21,11 +21,11 @@ void loop() {
 }
 
 void HS_ISR() {
-  buttonStateHardSync = digitalRead(buttonPin);
+  buttonStateHardSync = digitalRead(button1);
   Serial.println("HARD SYNC")
 }
 
 void SS_ISR() {
-  buttonStateSoftSync = digitalRead(buttonPin);
+  buttonStateSoftSync = digitalRead(button2);
    Serial.println("SOFT SYNC")
 }
