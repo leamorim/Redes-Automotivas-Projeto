@@ -17,6 +17,10 @@
 #define button1 2 //Porta digital 2 para o botão 1
 #define button2 3 //Porta digital 3 para o botão 2
 
+// variables will change:
+//volatile int buttonStateHardSync = 0;         // variable for reading the pushbutton status
+//volatile int buttonStateSoftSync = 0;         // variable for reading the pushbutton status
+
 byte STATE;
 bool Reset_Count = false;
 unsigned int count = 0;
@@ -29,8 +33,23 @@ void setup() {
   Timer1.initialize(TQ);   //(PARAMETRO EM MICROSEGUNDOS)
   Timer1.attachInterrupt(Inc_Count); //
   STATE = SYNC;
-  pinMode(button1, INPUT);
-  pinMode(button2, INPUT);
+  pinMode(button1, INPUT);  // initialize the pushbutton 1 pin as an input:
+  pinMode(button2, INPUT);  // initialize the pushbutton 2 pin as an input:
+  // Attach an interrupt to the ISR vector
+  attachInterrupt(0, HS_ISR, RISING);
+  attachInterrupt(1, SS_ISR, RISING);
+}
+
+void HS_ISR() {
+  //buttonStateHardSync = digitalRead(button1);//não precisa disso aqui
+  Serial.println("HARD SYNC");
+  STATE = SYNC;
+  count = 0;
+}
+
+void SS_ISR() {
+  //buttonStateSoftSync = digitalRead(button2);//não precisa disso aqui pq n uso essa var em nenhum outro lugar1
+  Serial.println("SOFT SYNC");
 }
 
 void Inc_Count(){
@@ -41,28 +60,7 @@ void Inc_Count(){
   Serial.println(count);
 }
 
-void Edge_Detector(){
-  HS = digitalRead(button1);
-  soft = digitalRead(button2);
-  if (HS == HIGH) {
-    Serial.println("Hard_Sync");
-  }
-  if (soft == HIGH) {
-    Serial.println("Soft_Sync");
-  }
-}
-
-
 void UC(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
-
-  if(HS == HIGH){
-    Serial.println("hard_entrou");
-    HS = LOW;
-    STATE = SYNC;
-//    Timer1.start();//restart do contador
-    count = 0;
-  }
-  else{
     switch(STATE){
       case SYNC:{
         if(count == L_SYNC){
@@ -86,12 +84,8 @@ void UC(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
         break;
       }
     }
-  } 
 }
 
 void loop() {
-  Edge_Detector();
   UC();
-  delay(100);
-  // put your main code here, to run repeatedly:
 }
