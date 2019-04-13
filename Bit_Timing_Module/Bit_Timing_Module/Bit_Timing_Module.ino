@@ -25,12 +25,15 @@ byte STATE;
 bool Reset_Count = false;
 unsigned int count = 0;
 int Ph_Error = 0;
+bool Plot_Tq = false;
 
 int HS = 0;       // Button 1 State - HARD SYNC
 int SOFT = 0;       // Button 2 State - SOFT SYNC
+bool plot_SS = false;
+bool plot_HS = true;
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
   Timer1.initialize(TQ);   //(PARAMETRO EM MICROSEGUNDOS)
   Timer1.attachInterrupt(Inc_Count);
   STATE = SYNC;
@@ -42,6 +45,7 @@ void setup() {
 }
 
 void HS_ISR() {
+  plot_HS = true;
   //buttonStateHardSync = digitalRead(button1);//não precisa disso aqui
   Serial.println("HARD SYNC");
   STATE = SYNC;
@@ -49,24 +53,25 @@ void HS_ISR() {
 }
 
 void SS_ISR() {
+  plot_SS = true;
   int error = 0;
   //buttonStateSoftSync = digitalRead(button2);//não precisa disso aqui pq n uso essa var em nenhum outro lugar1
   Serial.println("SOFT SYNC");
   if(STATE == SEG1){
     error = count;
     Ph_Error = min(SJW,error);    
-    Serial.print("error: ");
-    Serial.print(error);
-    Serial.print("/ Ph_error: ");
-    Serial.println(Ph_Error);
+   // Serial.print("error: ");
+   // Serial.print(error);
+   // Serial.print("/ Ph_error: ");
+   // Serial.println(Ph_Error);
   }
   else if(STATE == SEG2){
     error = L_SEG2 - count + 1;
     Ph_Error = min(SJW,error);
-    Serial.print("error: ");
-    Serial.print(error);
-    Serial.print("/ Ph_error: ");
-    Serial.println(Ph_Error);
+ //   Serial.print("error: ");
+ //   Serial.print(error);
+ //   Serial.print("/ Ph_error: ");
+ //   Serial.println(Ph_Error);
     if(count >= count - Ph_Error){
       STATE = SYNC;
       Ph_Error = 0;
@@ -75,24 +80,36 @@ void SS_ISR() {
   }
 }
 
+void Plotter(bool *Sample_Point, bool *Writing_Point){
+
+  Serial.print(STATE);
+  Serial.print(",");
+  Serial.print(Plot_Tq-2);
+  Serial.print(",");
+  Serial.print(plot_HS-4);
+  Serial.print(",");
+  Serial.print(plot_SS-6);
+  Serial.print(",");
+  Serial.print(*Sample_Point-8);
+  Serial.print(",");
+  Serial.println(*Writing_Point-10);
+  
+}
+
 void Inc_Count(){
   count++;
-  Serial.print("STATE:");
-  Serial.print(STATE);
-  Serial.print("Count:");
-  Serial.println(count);
+  Plot_Tq = !Plot_Tq;
+//  Serial.print("STATE:");
+//  Serial.print(STATE);
+//  Serial.print("Count:");
+ // Serial.println(count);
 }
 
-void Plotter(){
-   //Serial.print("STATE:");
-  Serial.print(STATE-3);
-  Serial.print(",");
-  //Serial.print("Count:");
-  Serial.println(count);
-}
-
-void UC(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
-  Plotter();
+void UC(bool *Sample_Point, bool *Writing_Point/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
+    plot_SS = false;
+    plot_HS = false;
+    *Sample_Point = false;
+    *Writing_Point = false;
     switch(STATE){
       case SYNC:{
         if(count == L_SYNC){
@@ -102,10 +119,12 @@ void UC(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
         break;
       }
       case SEG1:{
+        
         if(count == L_SEG1 + Ph_Error){
           STATE = SEG2;
           count = 0;
           Ph_Error = 0;
+          *Sample_Point = true;
         }
         break;
       }
@@ -114,6 +133,7 @@ void UC(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
           STATE = SYNC;
           count = 0;
           Ph_Error = 0;
+          *Writing_Point = true;
         }
         break;
       }
@@ -121,5 +141,9 @@ void UC(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
 }
 
 void loop() {
-  UC();
+  bool Sample_Point;
+  bool Writing_Point;
+  Plotter(&Sample_Point,&Writing_Point);
+  UC(&Sample_Point,&Writing_Point);
+  delayMicroseconds(TQ/2);
 }
