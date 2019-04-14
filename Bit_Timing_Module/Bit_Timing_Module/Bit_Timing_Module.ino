@@ -41,6 +41,9 @@ void setup() {
 
 void HS_ISR() {
   Hard_Sync = true;
+  Timer1.start();
+  Timer1.attachInterrupt(Inc_Count,TQ);
+ // Serial.println(Timer1.read());
 }
 
 void SS_ISR() {
@@ -50,10 +53,9 @@ void SS_ISR() {
 }
 
 void Plotter(){
-
-  Serial.print(STATE);
+  Serial.print(STATE-2);
   Serial.print(",");
-  Serial.print(Plot_Tq-2);
+  Serial.print(Plot_Tq-3);
   Serial.print(",");
   Serial.print(Hard_Sync-4);
   Serial.print(",");
@@ -61,14 +63,15 @@ void Plotter(){
   Serial.print(",");
   Serial.print(Sample_Point-8);
   Serial.print(",");
-  Serial.println(Writing_Point-10);
-
+  Serial.println(Writing_Point-10); 
 }
 
 void Inc_Count(){
   count++;
   Plot_Tq = !Plot_Tq;
-/*  Serial.print("STATE:");
+/*  Serial.print(Timer1.read());
+  Serial.print(",");
+  Serial.print("STATE:");
   Serial.print(STATE);
   Serial.print("Count:");
   Serial.print(count);
@@ -86,12 +89,11 @@ void UC(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
     Sample_Point = false;
     
     if(Hard_Sync){
-//      Serial.println("HARD_SYNC");
+//      Serial.println("HARD_SYNC_UC");
       STATE = SYNC;
       count = 0;
       Ph_Error = 0;
       Hard_Sync = false;
-      //FALTA RESETAR O TIMERONE AQUI
     }
     else{        
         switch(STATE){
