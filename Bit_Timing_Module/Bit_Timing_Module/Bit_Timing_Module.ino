@@ -134,14 +134,19 @@ void UC(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
 //              Serial.print("/ Ph_error: ");
 //              Serial.println(Ph_Error);
               if(count >= count - Ph_Error){
-                STATE = SYNC;
+                STATE = SEG1;
                 Writing_Point = true;
                 Ph_Error = 0;
                 count = 0;
               }
           }
           else if(count == L_SEG2 - Ph_Error){
+            if(Ph_Error != 0){
+              STATE = SEG1;
+            }
+            else {
             STATE = SYNC;
+            }
             Writing_Point = true;
             count = 0;
             Ph_Error = 0;
