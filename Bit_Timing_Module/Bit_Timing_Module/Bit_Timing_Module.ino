@@ -2,22 +2,23 @@
 
 /******ENTRADAS DO MÓDULO*****/
 #define TQ 1000000
-#define L_PH_SEG1 3
-#define L_PH_SEG2 5
+#define L_PH_SEG1 7
+#define L_PH_SEG2 8
 
 #define L_PROP 1
 #define L_SYNC 1
 #define SYNC 0
 #define SEG1 1
 #define SEG2 2
-#define SJW 2
+
+#define SJW 10
 
 #define L_SEG1 4
 #define L_SEG2 5
 #define button1 2 //Porta digital 2 para o botão 1
 #define button2 3 //Porta digital 3 para o botão 2
 
-byte STATE;
+volatile byte STATE;
 bool Reset_Count = false;
 unsigned int count = 0;
 bool Plot_Tq = false;
@@ -37,8 +38,8 @@ void setup() {
   pinMode(button1, INPUT);  // initialize the pushbutton 1 pin as an input:
   pinMode(button2, INPUT);  // initialize the pushbutton 2 pin as an input:
   // Attach an interrupt to the ISR vector
-  attachInterrupt(0, HS_ISR, RISING);
-  attachInterrupt(1, SS_ISR, RISING);
+  attachInterrupt(0, HS_ISR, FALLING);
+  attachInterrupt(1, SS_ISR, FALLING);
 }
 
 void HS_ISR() {
@@ -123,7 +124,7 @@ void UC(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
 //              Serial.print("/ Ph_error: ");
 //              Serial.println(Ph_Error);
             }
-            if(count == (L_SEG1 + Ph_Error)){
+            if(count == (L_PH_SEG1 + L_PROP + Ph_Error)){
               STATE = SEG2;
               Sample_Point = true;
               count = 0;
@@ -134,36 +135,36 @@ void UC(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
         }
         case SEG2:{
           if(Soft_Sync){
-              int error = L_SEG2 - count;
+              int error = L_PH_SEG2 - count;
               Ph_Error = min(SJW,error);
               Soft_Sync = false;
- /*             Serial.print("error: ");
-              Serial.print(error);
-              Serial.print("/COUNT: ");
-              Serial.print(count);
-              Serial.print("/ Ph_error: ");
-              Serial.println(Ph_Error);
-              */
-              if(count >= count - Ph_Error && (count-Ph_Error) > 0){
+//              Serial.print("error: ");
+//              Serial.print(error);
+//              Serial.print("/COUNT: ");
+//              Serial.print(count);
+//              Serial.print("/ Ph_error: ");
+//              Serial.println(Ph_Error);
+//              
+              if(count > L_SEG2 - Ph_Error){
 //                SS_Flag = false;
                 STATE = SEG1;
                 //Writing_Point = true;
                 Ph_Error = 0;
-                count = 0;
+                //count = 0;
                 Timer1.start();
                 Timer1.attachInterrupt(Inc_Count,TQ);
-                
+                count = 0;  
               }
           }
-          else if(count == L_SEG2 - Ph_Error){
+          else if(count == L_PH_SEG2 - Ph_Error){
             if(Ph_Error != 0){
               STATE = SEG1;
               Soft_Sync = false;
               SS_Flag = false;
             }
             else {
-              STATE = SYNC;
-              Writing_Point = true;
+                STATE = SYNC;
+                Writing_Point = true;
             }
             count = 0;
             Ph_Error = 0;
@@ -179,5 +180,4 @@ void loop() {
   
   Plotter();
   UC();
-
 }
