@@ -10,7 +10,7 @@
 #define SYNC 0
 #define SEG1 1
 #define SEG2 2
-#define SJW 3
+#define SJW 2
 
 #define L_SEG1 4
 #define L_SEG2 5
@@ -73,23 +73,23 @@ void Plotter(){
 void Inc_Count(){
   count++;
   Plot_Tq = !Plot_Tq;
-/*  Serial.print(Timer1.read());
-  Serial.print(",");
-  Serial.print("STATE:");
-  Serial.print(STATE);
-  Serial.print("Count:");
-  Serial.print(count);
-  Serial.print("hs:");
-  Serial.print(Hard_Sync);
-  Serial.print("/ss: ");
-  Serial.println(Soft_Sync);
-  */
+//  Serial.print(Timer1.read());
+//  Serial.print(",");
+//  Serial.print("STATE:");
+//  Serial.print(STATE);
+//  Serial.print("Count:");
+//  Serial.print(count);
+//  Serial.print("hs:");
+//  Serial.print(Hard_Sync);
+//  Serial.print("/ss: ");
+//  Serial.println(Soft_Sync);
+  
 }
 
 int Ph_Error = 0;
 
 void UC(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
-    Writing_Point = false;
+    //Writing_Point = false;
     Sample_Point = false;
     
     if(Hard_Sync){
@@ -98,6 +98,7 @@ void UC(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
       count = 0;
       Ph_Error = 0;
       Hard_Sync = false;
+      Writing_Point = true;
     }
     else{        
         switch(STATE){
@@ -107,21 +108,22 @@ void UC(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
             count = 0;
             Ph_Error = 0;
             HS_Flag = false;
+            Writing_Point = false;
           }
           break;
         
         case SEG1:{
             if(Soft_Sync){//Ver se é necessário resetar TimerOne aqui também
-//              Serial.println("SOFT SYNC");
               int error = count;
               Ph_Error = min(SJW,error);
               Soft_Sync = false;  
+//              Serial.println("SOFT SYNC");
 //              Serial.print("error: ");
 //              Serial.print(error);
 //              Serial.print("/ Ph_error: ");
 //              Serial.println(Ph_Error);
             }
-            if(count == L_SEG1 + Ph_Error){
+            if(count == (L_SEG1 + Ph_Error)){
               STATE = SEG2;
               Sample_Point = true;
               count = 0;
@@ -132,24 +134,32 @@ void UC(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
         }
         case SEG2:{
           if(Soft_Sync){
-              int error = L_SEG2 - count + 1;
+              int error = L_SEG2 - count;
               Ph_Error = min(SJW,error);
               Soft_Sync = false;
-//              Serial.print("error: ");
-//              Serial.print(error);
-//              Serial.print("/ Ph_error: ");
-//              Serial.println(Ph_Error);
-              if(count >= count - Ph_Error){
+ /*             Serial.print("error: ");
+              Serial.print(error);
+              Serial.print("/COUNT: ");
+              Serial.print(count);
+              Serial.print("/ Ph_error: ");
+              Serial.println(Ph_Error);
+              */
+              if(count >= count - Ph_Error && (count-Ph_Error) > 0){
+//                SS_Flag = false;
                 STATE = SEG1;
                 //Writing_Point = true;
                 Ph_Error = 0;
                 count = 0;
-                SS_Flag = false;
+                Timer1.start();
+                Timer1.attachInterrupt(Inc_Count,TQ);
+                
               }
           }
           else if(count == L_SEG2 - Ph_Error){
             if(Ph_Error != 0){
               STATE = SEG1;
+              Soft_Sync = false;
+              SS_Flag = false;
             }
             else {
               STATE = SYNC;
@@ -157,7 +167,6 @@ void UC(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
             }
             count = 0;
             Ph_Error = 0;
-            SS_Flag = false;
           }
           break;
       }
