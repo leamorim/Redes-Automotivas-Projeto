@@ -146,8 +146,8 @@ void UC(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
             }
             else {
             STATE = SYNC;
-            }
             Writing_Point = true;
+            }
             count = 0;
             Ph_Error = 0;
           }
