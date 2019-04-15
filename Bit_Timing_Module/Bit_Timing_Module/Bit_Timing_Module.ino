@@ -24,8 +24,10 @@ bool Plot_Tq = false;
 
 bool Sample_Point = false;
 bool Writing_Point = false;
-bool Soft_Sync = false;
-bool Hard_Sync = false;
+volatile bool Soft_Sync = false;
+volatile bool Hard_Sync = false;
+volatile bool SS_Flag = false;
+volatile bool HS_Flag = false;
 
 void setup() {
   Serial.begin(9600);
@@ -41,6 +43,7 @@ void setup() {
 
 void HS_ISR() {
   Hard_Sync = true;
+  HS_Flag = true;
   Timer1.start();
   Timer1.attachInterrupt(Inc_Count,TQ);
  // Serial.println(Timer1.read());
@@ -49,21 +52,22 @@ void HS_ISR() {
 void SS_ISR() {
   if(STATE != SYNC){
     Soft_Sync = true;
+    SS_Flag = true;
   }  
 }
 
 void Plotter(){
-  Serial.print(STATE-2);
+  Serial.print(STATE-1);
   Serial.print(",");
   Serial.print(Plot_Tq-3);
   Serial.print(",");
-  Serial.print(Hard_Sync-4);
+  Serial.print(HS_Flag-5);
   Serial.print(",");
-  Serial.print(Soft_Sync-6);
+  Serial.print(SS_Flag-7);
   Serial.print(",");
-  Serial.print(Sample_Point-8);
+  Serial.print(Sample_Point-9);
   Serial.print(",");
-  Serial.println(Writing_Point-10); 
+  Serial.println(Writing_Point-11); 
 }
 
 void Inc_Count(){
@@ -102,6 +106,7 @@ void UC(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
             STATE = SEG1; 
             count = 0;
             Ph_Error = 0;
+            HS_Flag = false;
           }
           break;
         
@@ -121,6 +126,7 @@ void UC(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
               Sample_Point = true;
               count = 0;
               Ph_Error = 0;
+              SS_Flag = false;
             }
         break;
         }
@@ -138,6 +144,7 @@ void UC(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
                 //Writing_Point = true;
                 Ph_Error = 0;
                 count = 0;
+                SS_Flag = false;
               }
           }
           else if(count == L_SEG2 - Ph_Error){
@@ -145,11 +152,12 @@ void UC(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
               STATE = SEG1;
             }
             else {
-            STATE = SYNC;
-            Writing_Point = true;
+              STATE = SYNC;
+              Writing_Point = true;
             }
             count = 0;
             Ph_Error = 0;
+            SS_Flag = false;
           }
           break;
       }
