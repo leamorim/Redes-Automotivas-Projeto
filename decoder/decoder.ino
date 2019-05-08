@@ -1,0 +1,106 @@
+
+
+byte STATE;
+unsigned int count = 0;
+
+ /*Estados*/
+ #define BUS_IDLE 0
+ #define SoF 1
+ #define ID_A 2
+ #define RTR_SRR 3
+ #define IDE 4
+ #define R0 5
+ #define DLC 6
+ #define DATA 7
+ #define CRC_READ 8
+ #define CRC_DELIMITER 9
+ #define ACK_SLOT 10
+ #define ACK_DELIMITER 11
+ #define EOF 12
+
+/*Estados extras para o EXTEND*/
+ #define ID_B 13
+ #define RTR 14
+ #define R1R0 15 
+ 
+ /*Erro*/
+ #define STATE_ERROR 16
+ #define FORMART_ERROR 17
+ #define ACK_ERROR 18
+ #define CRC_ERROR 19
+ #define BIT_STUFFING_ERROR 20 
+ #define STATE_BSD_FLAG1 21
+ #define BIT_ERROR 22
+ #define STATE_BED_FLAG1 23
+
+ 
+  /*Tamanho dos Estados*/
+  #define L_BIT1 1
+  #define L_ID_A 11
+  #define L_DLC 4
+  #define L_CRC 15
+  #define L_EOF 7
+  #define L_DATA 8*L_DLC
+
+ void UC_DECODER(){
+
+    switch(STATE){
+      case BUS_IDLE:
+        if(count == L_BIT1){
+          STATE = SoF;
+        } 
+      break;
+      
+
+      case SoF:
+        if(count == L_BIT1){
+          STATE = ID_A;
+        } 
+      break;
+
+
+      case ID_A:
+        if(count == L_ID_A){
+          STATE = RTR_SRR;
+        } 
+      break;
+
+      case RTR_SRR:
+        if(count == L_BIT1){
+          STATE = IDE;
+        } 
+      break;
+
+        case IDE:
+        if(count == L_BIT1){
+          STATE = R0;
+        } 
+      break;
+
+        case R0:
+        if(count == L_BIT1){
+          STATE = DLC;
+        } 
+      break;
+
+        case DLC:
+        if(count == L_DLC){
+          STATE = DATA;
+        } 
+      break;
+      
+    }
+  }
+ 
+
+
+void setup() {
+  Serial.begin(9600);
+  STATE = BUS_IDLE;
+
+}
+
+void loop() {
+  UC_DECODER;
+
+}
