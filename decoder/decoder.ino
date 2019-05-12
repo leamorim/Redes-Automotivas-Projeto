@@ -4,13 +4,15 @@ unsigned int Value_DLC;
 unsigned int ERROR_FLAG = 0;
 unsigned int BSD_FLAG = 1;
 unsigned int BED_FLAG = 0;
+unsigned int RTR_FLAG;
+unsigned char frame[21] = "0000000101000000001";
 
  /*Estados*/
  #define BUS_IDLE 0
  #define SoF 1
  #define ID_A 2
  #define RTR_SRR 3
- #define IDE 4
+ #define IDE_0 4
  #define R0 5
  #define DLC 6
  #define DATA 7
@@ -21,19 +23,20 @@ unsigned int BED_FLAG = 0;
  #define EOF 12
 
 /*Estados extras para o EXTEND*/
- #define ID_B 13
- #define RTR 14
- #define R1R0 15 
+ #define IDE_1 13
+ #define ID_B 14
+ #define RTR 15
+ #define R1R0 16 
  
  /*Erro*/
- #define STATE_ERROR 16
- #define FORMART_ERROR 17
- #define ACK_ERROR 18
- #define CRC_ERROR 19
- #define BIT_STUFFING_ERROR 20 
- #define STATE_BSD_FLAG1 21
- #define BIT_ERROR 22
- #define STATE_BED_FLAG1 23
+ #define STATE_ERROR 25
+ #define FORMART_ERROR 26
+ #define ACK_ERROR 27
+ #define CRC_ERROR 28
+ #define BIT_STUFFING_ERROR 29 
+ #define STATE_BSD_FLAG1 30
+ #define BIT_ERROR 31
+ #define STATE_BED_FLAG1 32
 
  
   /*Tamanho dos Estados*/
@@ -52,8 +55,9 @@ unsigned int BED_FLAG = 0;
     switch(STATE)
     {
         case BUS_IDLE:
-            if(count == L_BIT)
+            if(count == L_BIT && frame[0] == '0')
             {
+                Serial.println("Bus_idle");
                 STATE = SoF;
             } 
         break;
@@ -62,6 +66,7 @@ unsigned int BED_FLAG = 0;
         case SoF:
             if(count == L_BIT && BSD_FLAG == 1 && BED_FLAG == 0)
             {
+                Serial.println("SoF");
                 STATE = ID_A;
             } 
         break;
@@ -70,6 +75,7 @@ unsigned int BED_FLAG = 0;
         case ID_A:
             if(count == L_ID_A)
             {
+                Serial.println("ID_A");
                 STATE = RTR_SRR;
             } 
         break;
@@ -77,36 +83,75 @@ unsigned int BED_FLAG = 0;
         case RTR_SRR:
             if(count == L_BIT)
             {
-                STATE = IDE;
+                 Serial.println("RTR_SRR");
+                if(frame[12] == '0')
+                {
+                  STATE = IDE_0;
+                  RTR_FLAG = 0; //Data Frame 
+                  // Base Data Frame or Format_Error
+                }
+                else
+                {
+                  STATE = IDE_1;
+                  //Could be Base/extend Data/Remote frame
+                }
             } 
         break;
 
-        case IDE:
+        case IDE_0:
             if(count == L_BIT)
             {
-             STATE = R0;
+              Serial.println("IDE_0");
+              if(frame[13] == '0')
+              {
+                STATE = R0;
+              }
+              else
+              {
+                STATE = FORMART_ERROR;  
+              }
             } 
         break;
 
         //State Extend
+
+         case IDE_1:
+            if(count == L_BIT)
+            {
+              Serial.println("IDE_1");
+              if(frame[13] == '0' && BED_FLAG == 1)
+              {
+                STATE = R0;
+              }
+              else if(frame[13] == '1')
+              {
+                STATE = ID_B;
+              }  
+            } 
+        break;
+
+        
         case ID_B:
             if(count == L_ID_B)
             {
-             STATE = RTR;
+              Serial.println("ID_B");
+              STATE = RTR;
             } 
         break;
 
         case RTR:
             if(count == L_BIT)
             {
-             STATE = R1R0;
+              Serial.println("RTR");
+              STATE = R1R0;
             } 
         break;
 
         case R1R0:
             if(count == L_R1R0)
             {
-             STATE = DLC;
+              Serial.println("R1R0");
+              STATE = DLC;
             } 
         break;       
 
@@ -116,14 +161,29 @@ unsigned int BED_FLAG = 0;
         case R0:
             if(count == L_BIT)
             {
-                STATE = DLC;
+                if(frame[14] == '0')
+                {
+                  STATE = DLC;
+                }
+                else
+                {
+                  STATE = FORMART_ERROR;
+                }
             } 
         break;
 
         case DLC:
             if(count == L_DLC)
             {
-                STATE = DATA;
+                if(RTR_FLAG == 0)
+                {
+                  STATE = DATA;
+                }
+                else
+                {
+                  STATE = CRC_READ;
+                }
+                //Faz a conta do DLC para saber o tamanho do campo data
             } 
         break;
 
@@ -135,7 +195,7 @@ unsigned int BED_FLAG = 0;
         break;
 
         case CRC_READ:
-            if(count == L_CRC)
+            if(count == L_CRC && BSD_FLAG == 0)
             {
                 STATE = CRC_DELIMITER;
             } 
