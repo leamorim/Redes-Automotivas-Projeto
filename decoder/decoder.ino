@@ -5,7 +5,20 @@ unsigned int ERROR_FLAG = 0;
 unsigned int BSD_FLAG = 1;
 unsigned int BED_FLAG = 0;
 unsigned int RTR_FLAG;
-unsigned char frame[21] = {'0','0','0','0','0','0','0','1','0','1','0','0','0','0','0','0','0','0','1'};//Até o DLC
+unsigned int aux_cont = 0;
+unsigned char frame[52] = {'0',
+                           '0','0','0','0','0','0','1','0','1','0','0',
+                           '0',
+                           '0',
+                           '0',
+                           '0','0','0','1',
+                           '0','0','0','0','0','0','0','1',
+                           '0','1','0','0','0','0','1','1','0','0','0','0','0','0','0',
+                           '1',
+                           '0',
+                           '1',
+                           '1','1','1','1','1','1','1'
+                           };
 
  /*Estados*/
  #define BUS_IDLE 0
@@ -101,7 +114,7 @@ unsigned char frame[21] = {'0','0','0','0','0','0','0','1','0','1','0','0','0','
                   RTR_FLAG = 0; //Data Frame
                   BED_FLAG = 1;
                   STATE = IDE_0; 
-                  Serial.println("Data Frame");
+                  Serial.println("DATA FRAME");
                   // Base Data Frame or Format_Error
                 }
                 else
@@ -119,6 +132,7 @@ unsigned char frame[21] = {'0','0','0','0','0','0','0','1','0','1','0','0','0','
               Serial.println("IDE_0");
               if(frame[13] == '0')
               {
+                Serial.println("BASE FRAME FORMAT");
                 count  = 0;
                 STATE = R0;
               }
@@ -206,7 +220,8 @@ unsigned char frame[21] = {'0','0','0','0','0','0','0','1','0','1','0','0','0','
                 {
                   count  = 0;
                   CalculateDLC(frame[15], frame[16], frame[17], frame[18]);
-                  Serial.println(Value_DLC);                 
+                  Serial.print(Value_DLC);
+                  Serial.println("byte");           
                   STATE = DATA;
                 }
                 else
@@ -221,7 +236,10 @@ unsigned char frame[21] = {'0','0','0','0','0','0','0','1','0','1','0','0','0','
         case DATA:
             if(count == L_DATA)
             {
+                aux_cont = 19 + Value_DLC*8; //DATA começa na posição 19. 
+                Serial.println("DATA");
                 count  = 0;
+                BSD_FLAG = 0;
                 STATE = CRC_READ;
             } 
         break;
@@ -229,6 +247,8 @@ unsigned char frame[21] = {'0','0','0','0','0','0','0','1','0','1','0','0','0','
         case CRC_READ:
             if(count == L_CRC && BSD_FLAG == 0)
             {
+                aux_cont += 15; 
+                Serial.println("CRC_READ");
                 count  = 0;
                 STATE = CRC_DELIMITER;
             } 
@@ -237,24 +257,71 @@ unsigned char frame[21] = {'0','0','0','0','0','0','0','1','0','1','0','0','0','
         case CRC_DELIMITER:
             if(count == L_BIT)
             {
-                count  = 0;
-                STATE = ACK_SLOT;
+                if(frame[aux_cont] == '1')
+                {
+                  Serial.println("CRC_DELIMITER");
+                  aux_cont++;
+                  count  = 0;
+                  STATE = ACK_SLOT;
+                }
+                else
+                {
+                  
+                  Serial.println("Formart Error");
+                  Serial.println(aux_cont);
+                  Serial.println(frame[aux_cont]);
+                  
+                  count  = 0;
+                  STATE = FORMART_ERROR;                
+                }
             } 
         break;
 
         case ACK_SLOT:
             if(count == L_BIT)
             {
-                count  = 0;
-                STATE = ACK_DELIMITER;
+                if(frame[aux_cont] == '0')
+                {
+                  Serial.println("ACK_SLOT");
+                  aux_cont++;
+                  count  = 0;
+                  STATE = ACK_DELIMITER;
+                }
+                else
+                {
+                  Serial.println("ACK Error");
+                  count  = 0;
+                  STATE = ACK_ERROR;             
+                }
             } 
         break;
 
         case ACK_DELIMITER:
             if(count == L_BIT)
             {
+                 //CRC Checked = CRC_READ
+                 if(frame[aux_cont] == '1')
+                 { 
+                    Serial.println("ACK_DELIMITER");
+                    count  = 0;
+                    STATE = EOF;
+                 }
+                 else
+                 {
+                    Serial.println("FORMART ERROR");
+                    count  = 0;
+                    STATE = FORMART_ERROR;       
+                 }                
+                
+            } 
+        break;
+
+        case EOF:
+            if(count == L_EOF)
+            {
+                Serial.println("EOF");
                 count  = 0;
-                STATE = EOF;
+                STATE = BUS_IDLE;
             } 
         break;
 
