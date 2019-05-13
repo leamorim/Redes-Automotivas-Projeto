@@ -5,7 +5,7 @@ unsigned int ERROR_FLAG = 0;
 unsigned int BSD_FLAG = 1;
 unsigned int BED_FLAG = 0;
 unsigned int RTR_FLAG;
-unsigned char frame[21] = "0000000101000000001";
+unsigned char frame[21] = {'0','0','0','0','0','0','0','1','0','1','0','0','0','0','0','0','0','0','1'};//Até o DLC
 
  /*Estados*/
  #define BUS_IDLE 0
@@ -49,13 +49,22 @@ unsigned char frame[21] = "0000000101000000001";
   #define L_CRC 15
   #define L_EOF 7
 
+ void CalculateDLC(char bit1, char bit2, char bit3, char bit4)
+ {
+   Value_DLC = ((bit1 - 48)*(8) + (bit2 - 48)*(4) + (bit3 - 48)*(2) + (bit4 - 48)*(1));
+   if(Value_DLC > 8)
+   {
+    Value_DLC = 8; 
+   }
+ }
+
 
  void UC_DECODER(){
 
     switch(STATE)
     {
         case BUS_IDLE:
-            if(count == L_BIT && frame[0] == '0')
+            if(frame[0] == '0')
             {
                 Serial.println("Bus_idle");
                 STATE = SoF;
@@ -67,6 +76,7 @@ unsigned char frame[21] = "0000000101000000001";
             if(count == L_BIT && BSD_FLAG == 1 && BED_FLAG == 0)
             {
                 Serial.println("SoF");
+                count  = 0;
                 STATE = ID_A;
             } 
         break;
@@ -76,6 +86,7 @@ unsigned char frame[21] = "0000000101000000001";
             if(count == L_ID_A)
             {
                 Serial.println("ID_A");
+                count  = 0;
                 STATE = RTR_SRR;
             } 
         break;
@@ -83,15 +94,19 @@ unsigned char frame[21] = "0000000101000000001";
         case RTR_SRR:
             if(count == L_BIT)
             {
-                 Serial.println("RTR_SRR");
+                Serial.println("RTR_SRR");
                 if(frame[12] == '0')
                 {
-                  STATE = IDE_0;
-                  RTR_FLAG = 0; //Data Frame 
+                  count  = 0;
+                  RTR_FLAG = 0; //Data Frame
+                  BED_FLAG = 1;
+                  STATE = IDE_0; 
+                  Serial.println("Data Frame");
                   // Base Data Frame or Format_Error
                 }
                 else
                 {
+                  count  = 0;
                   STATE = IDE_1;
                   //Could be Base/extend Data/Remote frame
                 }
@@ -99,16 +114,19 @@ unsigned char frame[21] = "0000000101000000001";
         break;
 
         case IDE_0:
-            if(count == L_BIT)
+            if(count == L_BIT && BED_FLAG == 1)
             {
               Serial.println("IDE_0");
               if(frame[13] == '0')
               {
+                count  = 0;
                 STATE = R0;
               }
               else
               {
-                STATE = FORMART_ERROR;  
+                Serial.println("Formart Error"); 
+                count  = 0;
+                STATE = FORMART_ERROR;
               }
             } 
         break;
@@ -121,10 +139,12 @@ unsigned char frame[21] = "0000000101000000001";
               Serial.println("IDE_1");
               if(frame[13] == '0' && BED_FLAG == 1)
               {
+                count  = 0;
                 STATE = R0;
               }
               else if(frame[13] == '1')
               {
+                count  = 0;
                 STATE = ID_B;
               }  
             } 
@@ -135,6 +155,7 @@ unsigned char frame[21] = "0000000101000000001";
             if(count == L_ID_B)
             {
               Serial.println("ID_B");
+              count  = 0;
               STATE = RTR;
             } 
         break;
@@ -143,6 +164,7 @@ unsigned char frame[21] = "0000000101000000001";
             if(count == L_BIT)
             {
               Serial.println("RTR");
+              count  = 0;
               STATE = R1R0;
             } 
         break;
@@ -151,6 +173,7 @@ unsigned char frame[21] = "0000000101000000001";
             if(count == L_R1R0)
             {
               Serial.println("R1R0");
+              count  = 0;
               STATE = DLC;
             } 
         break;       
@@ -163,10 +186,14 @@ unsigned char frame[21] = "0000000101000000001";
             {
                 if(frame[14] == '0')
                 {
+                  Serial.println("R0");
+                  count  = 0;
                   STATE = DLC;
                 }
                 else
                 {
+                  Serial.println("Formart Error");
+                  count  = 0;
                   STATE = FORMART_ERROR;
                 }
             } 
@@ -177,10 +204,14 @@ unsigned char frame[21] = "0000000101000000001";
             {
                 if(RTR_FLAG == 0)
                 {
+                  count  = 0;
+                  CalculateDLC(frame[15], frame[16], frame[17], frame[18]);
+                  Serial.println(Value_DLC);                 
                   STATE = DATA;
                 }
                 else
                 {
+                  count  = 0;
                   STATE = CRC_READ;
                 }
                 //Faz a conta do DLC para saber o tamanho do campo data
@@ -190,6 +221,7 @@ unsigned char frame[21] = "0000000101000000001";
         case DATA:
             if(count == L_DATA)
             {
+                count  = 0;
                 STATE = CRC_READ;
             } 
         break;
@@ -197,6 +229,7 @@ unsigned char frame[21] = "0000000101000000001";
         case CRC_READ:
             if(count == L_CRC && BSD_FLAG == 0)
             {
+                count  = 0;
                 STATE = CRC_DELIMITER;
             } 
         break;
@@ -204,6 +237,7 @@ unsigned char frame[21] = "0000000101000000001";
         case CRC_DELIMITER:
             if(count == L_BIT)
             {
+                count  = 0;
                 STATE = ACK_SLOT;
             } 
         break;
@@ -211,6 +245,7 @@ unsigned char frame[21] = "0000000101000000001";
         case ACK_SLOT:
             if(count == L_BIT)
             {
+                count  = 0;
                 STATE = ACK_DELIMITER;
             } 
         break;
@@ -218,6 +253,7 @@ unsigned char frame[21] = "0000000101000000001";
         case ACK_DELIMITER:
             if(count == L_BIT)
             {
+                count  = 0;
                 STATE = EOF;
             } 
         break;
@@ -267,6 +303,7 @@ void setup() {
 }
 
 void loop() {
-  UC_DECODER;
+  UC_DECODER();
+  count++;
 
 }
