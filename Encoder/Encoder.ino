@@ -7,7 +7,7 @@
 #define RTR 2
 #define IDE 3
 #define R0 4
-#define dlc 5
+#define DLC 5
 #define DATA 6
 #define CRC 7
 #define CRC_DELIMITER 8
@@ -32,12 +32,13 @@
 
 volatile byte STATE;
 int count;
-int ID[11] = {7,7,7,7,7,1,7,7,7,7,7};
-int DLC[4] = {1,0,0,1};
-int crc[15] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
+char ID[11] = {'7','1','1','1','7','0','1','1','1','1','7'};
+char dlc[4] = {'D','L','C','1'};
+char crc[15] = {'1','2','3','4','5','6','7','8','9','1','2','3','4','5','6'};
+char data[8] = {'1','2','3','4','5','6','7','8'};
 int DLC_L = 1;
-int *data =  malloc(sizeof(int) * (DLC_L*8));
-int *Frame = malloc(sizeof(int) * 120);
+//char *data =  malloc(sizeof(char) * (DLC_L*8));
+char *Frame = malloc(sizeof(char) * 55);
 
 void setup() {
   Serial.begin(9600);
@@ -47,13 +48,14 @@ void setup() {
 
 }
 
-void Frame_Printer(int*v){
+void Frame_Printer(char*v){
   Serial.print("FRAME:\n");
-  for(int i = 0;i <60;i++){
+  for(int i = 0;i <55;i++){
     Serial.print(v[i]);
     Serial.print("\n");
   }
 }
+
 void Inc_Count(){
   count++;
 }
@@ -67,7 +69,7 @@ void Data_Builder(){
         count = 0; 
         break;
       }
-       Frame[0] = 0;
+       Frame[0] = '0';
     Serial.print("SOF\n");
     Serial.print(count);
     Serial.print("\n");
@@ -76,37 +78,39 @@ void Data_Builder(){
       if(count == 11){
         STATE = RTR;
         count = 0; 
-      }
+      } // 1 2 3 4 5 6 7 8 9 1 2 
       break;
     case RTR:
-      Frame[12] = 0;
+      Frame[12] = '0';
       if(count == 1){
         STATE = IDE;
         count = 0; 
       }
       break;
     case IDE:
-      Frame[13] = 0;
+      Frame[13] = '0';
       if(count == 1){
         STATE = R0;
         count = 0; 
       }
       break;
     case R0:
-      Frame[14] = 0;
+      Frame[14] = '0';
       if(count == 1){
-        STATE = dlc;
+        STATE = DLC;
         count = 0; 
       }
       break;
-    case dlc:
-      Frame[count + 15] = DLC[count];
+    case DLC:
+      Serial.print("TO AQUI");
+      Frame[count + 15] = dlc[count];
       if(count == 3){
         STATE = DATA;
         count = 0; 
       }
       break;
     case DATA:
+    Serial.print("DATA");
       Frame[count +19] = data[count];
       if(count == DLC_L*8){
         STATE = CRC;
@@ -114,41 +118,41 @@ void Data_Builder(){
       }
       break;
     case CRC:
-      Frame[count + 19 + DLC_L*8] = crc[count];
+      Frame[count + 20 + DLC_L*8] = crc[count];
       if(count == 15){
         STATE = CRC_DELIMITER;
         count = 0; 
       }
       break;
     case CRC_DELIMITER:
-      Frame[count + 34 + DLC_L*8] = 1;
+      Frame[count + 35 + DLC_L*8] = '1';
       if(count == 1){
         STATE = ACK_SLOT;
         count = 0; 
       }
       break;
     case ACK_SLOT:
-      Frame[count + 35 + DLC_L*8] = 1;  // First Encoder writes RECESSIVE bit
+      Frame[count + 36 + DLC_L*8] = '1';  // First Encoder writes RECESSIVE bit
       if(count == 1){
         STATE = ACK_DELIMITER;
         count = 0; 
       }
       break;
     case ACK_DELIMITER:
-      Frame[count + 36 + DLC_L*8] = 1;
+      Frame[count + 37 + DLC_L*8] = '1';
       if(count == 1){
         STATE = EOF;
         count = 0; 
       }
       break;
     case EOF:
-      Frame[count + 37 + DLC_L*8] = 1;
+      Frame[count + 38 + DLC_L*8] = '1';
       if(count == 6){
         STATE = INTERFRAME_SPACING;
         count = 0; 
       }
     case INTERFRAME_SPACING:
-      Frame[count + 44 + (DLC_L*8)] = 1;
+      Frame[count + 45 + (DLC_L*8)] = '1';
       if(count == 3){
         count = 0; 
         STATE = SOF;
