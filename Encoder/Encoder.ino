@@ -37,7 +37,7 @@ int count = 0;
 char ID[11] = {'9','7','7','7','7','8','7','7','7','7','9'};
 char dlc[4] = {'D','L','C','E'};
 char crc[15] = {'9','3','3','3','3','3','3','8','3','3','3','3','3','3','9'};
-char data[8] = {'1','1','1','1','1','1','1','1'};
+char data[8] = {'0','1','1','1','1','1','1','0'};
 int DLC_L = 1;
 //char *data =  malloc(sizeof(char) * (DLC_L*8));
 //char *Frame = (char*) calloc(55,sizeof(char));
@@ -60,10 +60,6 @@ void Frame_Printer(char*v){
   Serial.println();
 }
 
-void Inc_Count(){
-  count++;
-}
-
 void Data_Builder(){
   Serial.print("Data Builder\n");
   switch(STATE){
@@ -77,26 +73,24 @@ void Data_Builder(){
       Serial.println(Frame[0]);
       break;
     case ID_A:
+    //count--;
       Serial.print("COUNT ID:  ");
       Serial.println(count);
-      if(count == 11){
+      if(count == 12){
         STATE = RTR;
         count = 0; 
         break;
       }
-      Frame[count+1] = ID[count];
+      Frame[count] = ID[count-1];
       Serial.print("IDA: ");
-      Serial.println(Frame[count +1]);
+      Serial.println(Frame[count]);
       break;
     case RTR:
       Serial.print("COUNT RTR:  ");
       Serial.println(count);
       Frame[12] = '0';
-      if(count == 1){
-        STATE = IDE;
-        count = 0; 
-        //break;
-      }
+      STATE = IDE;
+      count = 0; 
       Serial.print("RTR: ");
       Serial.println(Frame[12]);
       break;
@@ -123,34 +117,38 @@ void Data_Builder(){
     case DLC:
       Serial.print("COUNT DLC:  ");
       Serial.println(count);
-      if(count == 4){
+      if(count == 5){
         STATE = DATA;
         count = 0; 
         //break;
       }
-      Frame[count + 15] = dlc[count];
+      Frame[count + 14] = dlc[count-1];
       Serial.print("DLC: ");
-      Serial.println(Frame[count + 15]);
+      Serial.println(Frame[count + 14]);
       break;
     case DATA:
-      if(count == (DLC_L*8)){
+      Serial.print("COUNT DATA:  ");
+      Serial.println(count);
+      if(count == (DLC_L*8)+1){
         STATE = CRC;
         count = 0; 
         //break;
       }
-      Frame[count +19] = data[count];
+      Frame[count + 18] = data[count-1];
       Serial.print("DATA: ");
-      Serial.println(Frame[count +19]);
+      Serial.println(Frame[count + 18]);
       break;
     case CRC:
+      Serial.print("COUNT CRC:  ");
+      Serial.println(count);
       if(count == 16){
         STATE = CRC_DELIMITER;
         count = 0; 
         //break;
       }
-      Frame[count + 19 + (DLC_L*8)] = crc[count];
+      Frame[count + 18 + (DLC_L*8)] = crc[count];
       Serial.print("CRC: ");
-      Serial.println(Frame[count + 19 + (DLC_L*8)]);
+      Serial.println(Frame[count + 18 + (DLC_L*8)]);
       break;
       //break;
     case CRC_DELIMITER:
@@ -362,6 +360,6 @@ void loop() {
   if(count == 56) {
     count = 0;
   }
-  delay(500);
+  delay(300);
 }
   // put your main code here, to run repeatedly:
