@@ -2,12 +2,16 @@ byte STATE;
 unsigned int count = 0;
 unsigned int Value_DLC;
 unsigned int ERROR_FLAG = 0;
-unsigned int BSD_FLAG = 1;
+unsigned int BSD_FLAG = 0;
 unsigned int BED_FLAG = 0;
+unsigned int BUS_IDLE_FLAG = 1;
+unsigned int CAPTURE = 1;
 unsigned int aux_count = 0;
 unsigned int Data_Flag = 0;
 unsigned int Remote_Flag = 0;
 unsigned int Extend_Flag = 0;
+unsigned int ACK_FLAG;
+unsigned char BIT_TO_SAVE;
 
 //Data Base Frame Format
 unsigned char frame[112] = {'0',/*SoF*/
@@ -90,7 +94,7 @@ unsigned char frame3[132] = {'0',/*SoF pos 0*/
  #define CRC_DELIMITER 9
  #define ACK_SLOT 10
  #define ACK_DELIMITER 11
- #define EOF 12
+ #define EoF 12
  #define INTERFRAME_SPACING 13
 
 /*Estados extras para o EXTEND*/
@@ -133,395 +137,417 @@ unsigned char frame3[132] = {'0',/*SoF pos 0*/
 
  void UC_DECODER(){
 
-    switch(STATE)
-    {
-        case BUS_IDLE:
-          Serial.println("Bus_idle");
-          STATE = SoF;
-        break;
-
-
-        case SoF:
-          if(count == L_BIT && frame[0] == '0' )
-          {
-              Serial.println("SoF");
-              count  = 0;
-              STATE = ID_A;
-          } 
-        break;
-
-
-        case ID_A:
-          if(count == L_ID_A && BSD_FLAG == 1 && BED_FLAG == 0)
-          {
-              Serial.println("ID_A");
-              count  = 0;
-              STATE = RTR_SRR;
-          } 
-        break;
-
-        case RTR_SRR:
-          if(count == L_BIT)
-          {
-              Serial.println("RTR_SRR");
-              if(frame[12] == '0')
+   if(CAPTURE == 1)
+   {
+      switch(STATE)
+      {
+          case BUS_IDLE:
+            if(BUS_IDLE_FLAG == 1)
+            {
+              if(frame[0] = '0')
               {
-                count  = 0;
-                Data_Flag = 1; //Data Frame
-                BED_FLAG = 1;
-                STATE = IDE_0; 
-                Serial.println("Data frame");
-                // Base Data Frame or Format_Error
+                BUS_IDLE_FLAG = 0;
+                Serial.println("Bus_idle");
+                count = 0;
+                STATE = SoF;
               }
               else
               {
-                count  = 0;
-                STATE = IDE_1;
-                //Could be Base/extend Data/Remote frame
+                Serial.println("Bus_idle");
+                count = 0;
+                STATE = BUS_IDLE;
               }
-          } 
-      break;
-
-      case IDE_0:
-          if(count == L_BIT && BED_FLAG == 1)
-          {
-            Serial.println("IDE_0");
-            if(frame[13] == '0')
-            {
-              Serial.println("Base frame Formart");
-              count  = 0;
-              STATE = R0;
             }
-            else
+          break;
+  
+  
+          case SoF:
+            if(count == L_BIT && frame[0] == '0' )
             {
-              Serial.println("Formart Error"); 
-              count  = 0;
-              STATE = FORMART_ERROR;
-            }
-          } 
-        break;
-
-        //States Extend
-
-         case IDE_1:
+                Serial.println("SoF");
+                BSD_FLAG = 1;
+                count  = 0;
+                STATE = ID_A;
+            } 
+          break;
+  
+  
+          case ID_A:
+            if(count == L_ID_A && BSD_FLAG == 1 && BED_FLAG == 0)
+            {
+                Serial.println("ID_A");
+                count  = 0;
+                STATE = RTR_SRR;
+            } 
+          break;
+  
+          case RTR_SRR:
             if(count == L_BIT)
             {
-              Serial.println("IDE_1");
+                Serial.println("RTR_SRR");
+                if(frame[12] == '0')
+                {
+                  count  = 0;
+                  Data_Flag = 1; //Data Frame
+                  BED_FLAG = 1;
+                  STATE = IDE_0; 
+                  Serial.println("Data frame");
+                  // Base Data Frame or Format_Error
+                }
+                else
+                {
+                  count  = 0;
+                  STATE = IDE_1;
+                  //Could be Base/extend Data/Remote frame
+                }
+            } 
+        break;
+  
+        case IDE_0:
+            if(count == L_BIT && BED_FLAG == 1)
+            {
+              Serial.println("IDE_0");
               if(frame[13] == '0')
               {
-                Serial.println("Base Frame Formart");
-                Serial.println("Remote Frame");        
-                BED_FLAG = 1;
-                Remote_Flag = 1;
+                Serial.println("Base frame Formart");
                 count  = 0;
                 STATE = R0;
               }
-              else if(frame[13] == '1')
+              else
               {
-                Serial.println("Extend Frame");
-                Extend_Flag = 1;
-                count  = 0;
-                STATE = ID_B;
-              }  
-            } 
-        break;
-
-        case ID_B:
-          if(count == L_ID_B)
-          {
-            Serial.println("ID_B");
-            count  = 0;
-            STATE = RTR;
-          } 
-        break;
-
-        case RTR:
-          if(count == L_BIT)
-          {
-            Serial.println("RTR");
-            BED_FLAG = 1;
-            
-            if(frame[32] =='0')
-            {
-              Serial.println("Data frame");
-              Data_Flag = 1;
-              count  = 0;
-              STATE = R1R0;  
-            }
-            else
-            {
-              Serial.println("Remote frame");
-              Remote_Flag = 1;
-              count  = 0;
-              STATE = R1R0;  
-            }     
-            
-          } 
-        break;
-
-        case R1R0:
-          if(count == L_R1R0 && BED_FLAG == 1)
-          {
-            Serial.println("R1R0");
-            count  = 0;
-            STATE = DLC;
-          } 
-        break;       
-
-
-        //States Extend
-
-        case R0:
-          if(count == L_BIT)
-          {
-              if(frame[14] == '0' && Remote_Flag == 0)
-              {
-                Serial.println("R0");
-                count  = 0;
-                STATE = DLC;
-              }
-              else if(frame[14] == '0' && Remote_Flag == 1 && BED_FLAG == 1 )
-              {
-                Serial.println("R0");
-                count  = 0;
-                STATE = DLC;
-
-              }
-              else if(frame[14] =='1')
-              {
-                Serial.println("Formart Error");
+                Serial.println("Formart Error"); 
                 count  = 0;
                 STATE = FORMART_ERROR;
               }
-          } 
-        break;
-
-        case DLC:
-          if(count == L_DLC)
-          {
-              if(Data_Flag == 1 && Extend_Flag == 0)
+            } 
+          break;
+  
+          //States Extend
+  
+           case IDE_1:
+              if(count == L_BIT)
               {
-                number_of_bytes(frame[15], frame[16], frame[17], frame[18]);
-                Serial.println("DLC");  
-                Serial.print(Value_DLC);
-                Serial.println("byte"); 
-                count  = 0;          
-                STATE = DATA;
-              }
-              else if(Remote_Flag == 1 && Extend_Flag == 0)
-              {
-
-                Serial.println("DLC");   
-                aux_count = 19;
-                Remote_Flag = 0;
-                count  = 0;
-                STATE = CRC_READ;
-              }
-              else if(Data_Flag == 1 &&  Extend_Flag == 1)
-              {
-                aux_count = 35;
-                number_of_bytes(frame[aux_count], frame[aux_count+1], frame[aux_count+2], frame[aux_count+3]);
-                Serial.println("DLC");  
-                Serial.print(Value_DLC);
-                Serial.println("byte"); 
-                count  = 0;          
-                STATE = DATA;
-              }
-              else if(Remote_Flag == 1 && Extend_Flag == 1)
-              {
-
-                Serial.println("DLC");
-                Remote_Flag = 0;
-                Extend_Flag - 0;   
-                aux_count = 39;
-                count  = 0;
-                STATE = CRC_READ;
-              }
-            
-          } 
-        break;
-
-        case DATA:
-          if(count == L_DATA)
-          {
-              if(Data_Flag == 1 && Extend_Flag == 0)
-              {
-                aux_count = 19 + Value_DLC*8; //DATA começa na posição 19. 
-                Serial.println("DATA");
-                Data_Flag = 0;
-                count  = 0;
-                STATE = CRC_READ;
-              }
-              else if(Data_Flag == 1 && Extend_Flag == 1)
-              {
-                aux_count = 39 + Value_DLC*8;//DATA começa na posição 39.
-                  Serial.println("DATA");
-                  Data_Flag = 0;
-                  Extend_Flag = 0;
+                Serial.println("IDE_1");
+                if(frame[13] == '0')
+                {
+                  Serial.println("Base Frame Formart");
+                  Serial.println("Remote Frame");        
+                  BED_FLAG = 1;
+                  Remote_Flag = 1;
                   count  = 0;
-                  STATE = CRC_READ;
-
-              }
-          } 
-        break;
-
-        case CRC_READ:
-          if(count == L_CRC)
-          {
-              BSD_FLAG = 0;
-              aux_count += 15; 
-              Serial.println("CRC_READ");
+                  STATE = R0;
+                }
+                else if(frame[13] == '1')
+                {
+                  Serial.println("Extend Frame");
+                  Extend_Flag = 1;
+                  count  = 0;
+                  STATE = ID_B;
+                }  
+              } 
+          break;
+  
+          case ID_B:
+            if(count == L_ID_B)
+            {
+              Serial.println("ID_B");
               count  = 0;
-              STATE = CRC_DELIMITER;
-          } 
-        break;
-
-        case CRC_DELIMITER:
-          if(count == L_BIT && BSD_FLAG == 0)
-          {
-              if(frame[aux_count] == '1')
-              {
-                Serial.println("CRC_DELIMITER");
-                aux_count++;
-                count  = 0;
-                STATE = ACK_SLOT;
-              }
-              else
-              {
-                
-                Serial.println("Formart Error");
-                Serial.println(aux_count);
-                Serial.println(frame[aux_count]);
-                
-                count  = 0;
-                STATE = FORMART_ERROR;                
-              }
-          } 
-        break;
-
-        case ACK_SLOT:
-          if(count == L_BIT)
-          {
-              if(frame[aux_count] == '0')
-              {
-                Serial.println("ACK_SLOT");
-                aux_count++;
-                count  = 0;
-                STATE = ACK_DELIMITER;
-              }
-              else
-              {
-                Serial.println("ACK Error");
-                count  = 0;
-                STATE = ACK_ERROR;             
-              }
-          } 
-        break;
-
-        case ACK_DELIMITER:
+              STATE = RTR;
+            } 
+          break;
+  
+          case RTR:
             if(count == L_BIT)
             {
-                 //CRC Checked = CRC_READ
-                 if(frame[aux_count] == '1')
-                 { 
-                    Serial.println("ACK_DELIMITER");
-                    aux_count++;
-                    count  = 0;
-                    STATE = EOF;
-                 }
-                 else
-                 {
-                    Serial.println("FORMART ERROR");
-                    count  = 0;
-                    STATE = FORMART_ERROR;       
-                 }                
-                
-            } 
-        break;
-
-        case EOF:
-            if(frame[aux_count + count - 1] == '1')
-            {
-              //Serial.println(count);
-              //Serial.println(frame[aux_count + count-1] - 48);    
-              //Serial.println(aux_count+count-1);
+              Serial.println("RTR");
+              BED_FLAG = 1;
               
-              if(count == L_EOF)
+              if(frame[32] =='0')
               {
-                  Serial.println("EOF");
-                  aux_count += 7;
-                  count  = 0;
-                  STATE = INTERFRAME_SPACING;
-              } 
-            }
-            else
-            {
-              count  = 0;
-              STATE = FORMART_ERROR;
-            }
-            
-        break;
-
-        case INTERFRAME_SPACING:
-          if(frame[aux_count + count - 1 ] == '1')
-            {
-              //Serial.println(count);
-              //Serial.println(frame[aux_count + count -1] - 48);    
-              //Serial.println(aux_count+count -1);
-              if(count == L_INTERFRAME_SPACING)
-                  {
-                      Serial.println("INTERFRAME_SPACING");
-                      aux_count+=3;
-                      count  = 0;
-                      STATE = BUS_IDLE;
-                  }
-            }
-            else
-            {
-              count  = 0;
-              STATE = FORMART_ERROR;
-            }
-             
-        break;
-
-
-        //Error States
-
-        case STATE_ERROR:
-            Serial.println("STATE_ERROR");
-
-            if(ERROR_FLAG)
-            {
-              STATE = STATE_ERROR;
-            }
-            else
-            {
-              STATE = BUS_IDLE;
+                Serial.println("Data frame");
+                Data_Flag = 1;
+                count  = 0;
+                STATE = R1R0;  
+              }
+              else
+              {
+                Serial.println("Remote frame");
+                Remote_Flag = 1;
+                count  = 0;
+                STATE = R1R0;  
+              }     
+              
             } 
-        break;
-
-        case FORMART_ERROR:
+          break;
+  
+          case R1R0:
+            if(count == L_R1R0 && BED_FLAG == 1)
+            {
+              Serial.println("R1R0");
+              count  = 0;
+              STATE = DLC;
+            } 
+          break;       
+  
+  
+          //States Extend
+  
+          case R0:
+            if(count == L_BIT)
+            {
+                if(frame[14] == '0' && Remote_Flag == 0)
+                {
+                  Serial.println("R0");
+                  count  = 0;
+                  STATE = DLC;
+                }
+                else if(frame[14] == '0' && Remote_Flag == 1 && BED_FLAG == 1 )
+                {
+                  Serial.println("R0");
+                  count  = 0;
+                  STATE = DLC;
+  
+                }
+                else if(frame[14] =='1')
+                {
+                  Serial.println("Formart Error");
+                  count  = 0;
+                  STATE = FORMART_ERROR;
+                }
+            } 
+          break;
+  
+          case DLC:
+            if(count == L_DLC)
+            {
+                if(Data_Flag == 1 && Extend_Flag == 0)
+                {
+                  number_of_bytes(frame[15], frame[16], frame[17], frame[18]);
+                  Serial.println("DLC");  
+                  Serial.print(Value_DLC);
+                  Serial.println("byte"); 
+                  count  = 0;          
+                  STATE = DATA;
+                }
+                else if(Remote_Flag == 1 && Extend_Flag == 0)
+                {
+  
+                  Serial.println("DLC");   
+                  aux_count = 19;
+                  Remote_Flag = 0;
+                  count  = 0;
+                  STATE = CRC_READ;
+                }
+                else if(Data_Flag == 1 &&  Extend_Flag == 1)
+                {
+                  aux_count = 35;
+                  number_of_bytes(frame[aux_count], frame[aux_count+1], frame[aux_count+2], frame[aux_count+3]);
+                  Serial.println("DLC");  
+                  Serial.print(Value_DLC);
+                  Serial.println("byte"); 
+                  count  = 0;          
+                  STATE = DATA;
+                }
+                else if(Remote_Flag == 1 && Extend_Flag == 1)
+                {
+  
+                  Serial.println("DLC");
+                  Remote_Flag = 0;
+                  Extend_Flag - 0;   
+                  aux_count = 39;
+                  count  = 0;
+                  STATE = CRC_READ;
+                }
+              
+            } 
+          break;
+  
+          case DATA:
+            if(count == L_DATA)
+            {
+                if(Data_Flag == 1 && Extend_Flag == 0)
+                {
+                  aux_count = 19 + Value_DLC*8; //DATA começa na posição 19. 
+                  Serial.println("DATA");
+                  Data_Flag = 0;
+                  count  = 0;
+                  STATE = CRC_READ;
+                }
+                else if(Data_Flag == 1 && Extend_Flag == 1)
+                {
+                  aux_count = 39 + Value_DLC*8;//DATA começa na posição 39.
+                    Serial.println("DATA");
+                    Data_Flag = 0;
+                    Extend_Flag = 0;
+                    count  = 0;
+                    STATE = CRC_READ;
+  
+                }
+            } 
+          break;
+  
+          case CRC_READ:
+            if(count == L_CRC)
+            {
+                BSD_FLAG = 0;
+                aux_count += 15; 
+                Serial.println("CRC_READ");
+                count  = 0;
+                STATE = CRC_DELIMITER;
+            } 
+          break;
+  
+          case CRC_DELIMITER:
+            if(count == L_BIT && BSD_FLAG == 0)
+            {
+                if(frame[aux_count] == '1')
+                {
+                  Serial.println("CRC_DELIMITER");
+                  aux_count++;
+                  count  = 0;
+                  STATE = ACK_SLOT;
+                }
+                else
+                {
+                  
+                  Serial.println("Formart Error");
+                  Serial.println(aux_count);
+                  Serial.println(frame[aux_count]);
+                  
+                  count  = 0;
+                  STATE = FORMART_ERROR;                
+                }
+            } 
+          break;
+  
+          case ACK_SLOT:
+            if(count == L_BIT)
+            {
+                if(frame[aux_count] == '0')
+                {
+                  Serial.println("ACK_SLOT");
+                  aux_count++;
+                  count  = 0;
+                  STATE = ACK_DELIMITER;
+                }
+                else
+                {
+                  Serial.println("ACK Error");
+                  count  = 0;
+                  STATE = ACK_ERROR;             
+                }
+            } 
+          break;
+  
+          case ACK_DELIMITER:
+              if(count == L_BIT)
+              {
+                   //CRC Checked = CRC_READ
+                   if(frame[aux_count] == '1')
+                   { 
+                      Serial.println("ACK_DELIMITER");
+                      aux_count++;
+                      count  = 0;
+                      STATE = EoF;
+                   }
+                   else
+                   {
+                      Serial.println("FORMART ERROR");
+                      count  = 0;
+                      STATE = FORMART_ERROR;       
+                   }                
+                  
+              } 
+          break;
+  
+          case EoF:
+              if(frame[aux_count + count - 1] == '1')
+              {
+                //Serial.println(count);
+                //Serial.println(frame[aux_count + count-1] - 48);    
+                //Serial.println(aux_count+count-1);
+                
+                if(count == L_EOF)
+                {
+                    Serial.println("EOF");
+                    aux_count += 7;
+                    count  = 0;
+                    STATE = INTERFRAME_SPACING;
+                } 
+              }
+              else
+              {
+                count  = 0;
+                STATE = FORMART_ERROR;
+              }
+              
+          break;
+  
+          case INTERFRAME_SPACING:
+            if(frame[aux_count + count - 1 ] == '1')
+              {
+                //Serial.println(count);
+                //Serial.println(frame[aux_count + count -1] - 48);    
+                //Serial.println(aux_count+count -1);
+                if(count == L_INTERFRAME_SPACING)
+                    {
+                        Serial.println("INTERFRAME_SPACING");
+                        aux_count+=3;
+                        BUS_IDLE_FLAG  = 1;
+                        count  = 0;
+                        STATE = BUS_IDLE;
+                    }
+              }
+              else
+              {
+                count  = 0;
+                STATE = FORMART_ERROR;
+              }
+               
+          break;
+  
+  
+          //Error States
+  
+          case STATE_ERROR:
+              Serial.println("STATE_ERROR");
+  
+              if(ERROR_FLAG)
+              {
+                STATE = STATE_ERROR;
+              }
+              else
+              {
+                STATE = BUS_IDLE;
+              } 
+          break;
+  
+          case FORMART_ERROR:
+              
+            ERROR_FLAG = 1;
+            Serial.println("FORMART_ERROR");
+            STATE = STATE_ERROR;
+               
+          break;
+  
+          case ACK_ERROR:
             
-          Serial.println("FORMART_ERROR");
-          STATE = STATE_ERROR;
-             
-        break;
-
-        case ACK_ERROR:
-          
-          Serial.println("ACK_ERROR");  
-          STATE = STATE_ERROR;
-             
-        break;
-
-        case CRC_ERROR:
-
-          Serial.println("CRC_ERROR");  
-          STATE = STATE_ERROR;
-             
-        break;
-
-        //Error States
+            ERROR_FLAG = 1;
+            Serial.println("ACK_ERROR");  
+            STATE = STATE_ERROR;
+               
+          break;
+  
+          case CRC_ERROR:
+  
+            ERROR_FLAG = 1;
+            Serial.println("CRC_ERROR");  
+            STATE = STATE_ERROR;
+               
+          break;
+  
+          //Error States
+      }
     }
   }
  

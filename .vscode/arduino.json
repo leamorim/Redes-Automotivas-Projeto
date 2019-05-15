@@ -1,5 +1,6 @@
 {
     "board": "arduino:avr:uno",
-    "port": "COM8",
-    "sketch": "decoder\\decoder.ino"
+    "port": "COM23",
+    "sketch": "decoder\\decoder.ino",
+    "programmer": "AVR ISP"
 }
