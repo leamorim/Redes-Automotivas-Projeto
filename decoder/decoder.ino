@@ -4,10 +4,10 @@ unsigned int Value_DLC;
 unsigned int ERROR_FLAG = 0;
 unsigned int BSD_FLAG = 1;
 unsigned int BED_FLAG = 0;
-unsigned int aux_cont = 0;
+unsigned int aux_count = 0;
 unsigned int Data_Flag = 0;
-unsigned int Remote_flag = 0;
-unsigned int extend_flag = 0;
+unsigned int Remote_Flag = 0;
+unsigned int Extend_Flag = 0;
 
 //Data Base Frame Format
 unsigned char frame1[112] = {'0',/*SoF*/
@@ -50,13 +50,13 @@ unsigned char frame3[132] = {'0',/*SoF pos 0*/
                            '0',/*RTR pos 32*/
                            '1','0',/*R1R0 pos 33-34*/
                            '0','0','0','1',/*DLC pos 35-38*/
-                           '0','0','0','0','0','0','0','1',/*DATA pos começa em aux_cont = 39 + Value_DLC*8 -1 39-46*/
-                           '0','1','0','0','0','0','1','1','0','0','0','0','0','0','0',/*CRC pos aux_cont+= 15*/
-                           '1',/*CRC_DELIMITER pos aux_cont+= 1*/
-                           '0',/*ACK pos aux_cont+= 1*/
-                           '1',/*ACK_DELIMITER pos aux_cont+= 1*/
-                           '1','1','1','1','1','1','1',/*EOF pos aux_cont+= 7*/
-                           '1','1','1'/*INTERFRAME pos aux_cont+= 3*/
+                           '0','0','0','0','0','0','0','1',/*DATA pos começa em aux_count = 39 + Value_DLC*8 -1 39-46*/
+                           '0','1','0','0','0','0','1','1','0','0','0','0','0','0','0',/*CRC pos aux_count+= 15*/
+                           '1',/*CRC_DELIMITER pos aux_count+= 1*/
+                           '0',/*ACK pos aux_count+= 1*/
+                           '1',/*ACK_DELIMITER pos aux_count+= 1*/
+                           '1','1','1','1','1','1','1',/*EOF pos aux_count+= 7*/
+                           '1','1','1'/*INTERFRAME pos aux_count+= 3*/
                            };
 
 //Remote Extend Frame Formart
@@ -68,13 +68,13 @@ unsigned char frame[132] = {'0',/*SoF pos 0*/
                            '1',/*RTR pos 32*/
                            '1','0',/*R1R0 pos 33-34*/
                            '0','0','0','1',/*DLC pos 35-38*/
-                           /*'0','0','0','0','0','0','0','1',/*DATA pos começa em aux_cont = 39 + Value_DLC*8 -1 39-46*/
-                           '0','1','0','0','0','0','1','1','0','0','0','0','0','0','0',/*CRC_READ pos aux_cont+= 15*/
-                           '1',/*CRC_DELIMITER pos aux_cont+= 1*/
-                           '0',/*ACK pos aux_cont+= 1*/
-                           '1',/*ACK_DELIMITER pos aux_cont+= 1*/
-                           '1','1','1','1','1','1','1',/*EOF pos aux_cont+= 7*/
-                           '1','1','1'/*INTERFRAME pos aux_cont+= 3*/
+                           /*'0','0','0','0','0','0','0','1',/*DATA pos começa em aux_count = 39 + Value_DLC*8 -1 39-46*/
+                           '0','1','0','0','0','0','1','1','0','0','0','0','0','0','0',/*CRC_READ pos aux_count+= 15*/
+                           '1',/*CRC_DELIMITER pos aux_count+= 1*/
+                           '0',/*ACK pos aux_count+= 1*/
+                           '1',/*ACK_DELIMITER pos aux_count+= 1*/
+                           '1','1','1','1','1','1','1',/*EOF pos aux_count+= 7*/
+                           '1','1','1'/*INTERFRAME pos aux_count+= 3*/
                            };
 
  /*Estados*/
@@ -215,14 +215,14 @@ unsigned char frame[132] = {'0',/*SoF pos 0*/
                 Serial.println("Base Frame");
                 Serial.println("Remote Frame");        
                 BED_FLAG = 1;
-                Remote_flag = 1;
+                Remote_Flag = 1;
                 count  = 0;
                 STATE = R0;
               }
               else if(frame[13] == '1')
               {
                 Serial.println("Extend Frame");
-                extend_flag = 1;
+                Extend_Flag = 1;
                 count  = 0;
                 STATE = ID_B;
               }  
@@ -255,7 +255,7 @@ unsigned char frame[132] = {'0',/*SoF pos 0*/
               else
               {
                 Serial.println("Remote frame");
-                Remote_flag = 1;
+                Remote_Flag = 1;
                 count  = 0;
                 STATE = R1R0;  
               }     
@@ -278,13 +278,13 @@ unsigned char frame[132] = {'0',/*SoF pos 0*/
         case R0:
             if(count == L_BIT)
             {
-                if(frame[14] == '0' && Remote_flag == 0)
+                if(frame[14] == '0' && Remote_Flag == 0)
                 {
                   Serial.println("R0");
                   count  = 0;
                   STATE = DLC;
                 }
-                else if(frame[14] == '0' && Remote_flag == 1 && BED_FLAG == 1 )
+                else if(frame[14] == '0' && Remote_Flag == 1 && BED_FLAG == 1 )
                 {
                   Serial.println("R0");
                   count  = 0;
@@ -303,7 +303,7 @@ unsigned char frame[132] = {'0',/*SoF pos 0*/
         case DLC:
             if(count == L_DLC)
             {
-                if(Data_Flag == 1 && extend_flag == 0)
+                if(Data_Flag == 1 && Extend_Flag == 0)
                 {
                   number_of_bytes(frame[15], frame[16], frame[17], frame[18]);
                   Serial.println("DLC");  
@@ -312,29 +312,32 @@ unsigned char frame[132] = {'0',/*SoF pos 0*/
                   count  = 0;          
                   STATE = DATA;
                 }
-                else if(Remote_flag == 1 && extend_flag == 0)
+                else if(Remote_Flag == 1 && Extend_Flag == 0)
                 {
 
                   Serial.println("DLC");   
-                  aux_cont = 19;
+                  aux_count = 19;
+                  Remote_Flag = 0;
                   count  = 0;
                   STATE = CRC_READ;
                 }
-                else if(Data_Flag == 1 &&  extend_flag == 1)
+                else if(Data_Flag == 1 &&  Extend_Flag == 1)
                 {
-                  aux_cont = 35;
-                  number_of_bytes(frame[aux_cont], frame[aux_cont+1], frame[aux_cont+2], frame[aux_cont+3]);
+                  aux_count = 35;
+                  number_of_bytes(frame[aux_count], frame[aux_count+1], frame[aux_count+2], frame[aux_count+3]);
                   Serial.println("DLC)");  
                   Serial.print(Value_DLC);
                   Serial.println("byte"); 
                   count  = 0;          
                   STATE = DATA;
                 }
-                else if(Remote_flag == 1 && extend_flag == 1)
+                else if(Remote_Flag == 1 && Extend_Flag == 1)
                 {
 
-                  Serial.println("DLC");   
-                  aux_cont = 39;
+                  Serial.println("DLC");
+                  Remote_Flag = 0;
+                  Extend_Flag - 0;   
+                  aux_count = 39;
                   count  = 0;
                   STATE = CRC_READ;
                 }
@@ -345,17 +348,20 @@ unsigned char frame[132] = {'0',/*SoF pos 0*/
         case DATA:
             if(count == L_DATA)
             {
-               if(Data_Flag == 1 && extend_flag == 0)
+               if(Data_Flag == 1 && Extend_Flag == 0)
                {
-                  aux_cont = 19 + Value_DLC*8; //DATA começa na posição 19. 
+                  aux_count = 19 + Value_DLC*8; //DATA começa na posição 19. 
                   Serial.println("DATA");
+                  Data_Flag = 0;
                   count  = 0;
                   STATE = CRC_READ;
                }
-               else if(Data_Flag ==1 && extend_flag == 1)
+               else if(Data_Flag == 1 && Extend_Flag == 1)
                {
-                  aux_cont = 39 + Value_DLC*8;//DATA começa na posição 39.
+                  aux_count = 39 + Value_DLC*8;//DATA começa na posição 39.
                     Serial.println("DATA");
+                    Data_Flag = 0;
+                    Extend_Flag = 0;
                     count  = 0;
                     STATE = CRC_READ;
 
@@ -367,7 +373,7 @@ unsigned char frame[132] = {'0',/*SoF pos 0*/
             if(count == L_CRC)
             {
                 BSD_FLAG = 0;
-                aux_cont += 15; 
+                aux_count += 15; 
                 Serial.println("CRC_READ");
                 count  = 0;
                 STATE = CRC_DELIMITER;
@@ -377,10 +383,10 @@ unsigned char frame[132] = {'0',/*SoF pos 0*/
         case CRC_DELIMITER:
             if(count == L_BIT && BSD_FLAG == 0)
             {
-                if(frame[aux_cont] == '1')
+                if(frame[aux_count] == '1')
                 {
                   Serial.println("CRC_DELIMITER");
-                  aux_cont++;
+                  aux_count++;
                   count  = 0;
                   STATE = ACK_SLOT;
                 }
@@ -388,8 +394,8 @@ unsigned char frame[132] = {'0',/*SoF pos 0*/
                 {
                   
                   Serial.println("Formart Error");
-                  Serial.println(aux_cont);
-                  Serial.println(frame[aux_cont]);
+                  Serial.println(aux_count);
+                  Serial.println(frame[aux_count]);
                   
                   count  = 0;
                   STATE = FORMART_ERROR;                
@@ -400,10 +406,10 @@ unsigned char frame[132] = {'0',/*SoF pos 0*/
         case ACK_SLOT:
             if(count == L_BIT)
             {
-                if(frame[aux_cont] == '0')
+                if(frame[aux_count] == '0')
                 {
                   Serial.println("ACK_SLOT");
-                  aux_cont++;
+                  aux_count++;
                   count  = 0;
                   STATE = ACK_DELIMITER;
                 }
@@ -420,7 +426,7 @@ unsigned char frame[132] = {'0',/*SoF pos 0*/
             if(count == L_BIT)
             {
                  //CRC Checked = CRC_READ
-                 if(frame[aux_cont] == '1')
+                 if(frame[aux_count] == '1')
                  { 
                     Serial.println("ACK_DELIMITER");
                     count  = 0;
