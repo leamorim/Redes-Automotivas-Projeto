@@ -1,6 +1,5 @@
 byte STATE;
 unsigned int count = 0;
-unsigned int Value_DLC;
 unsigned int ERROR_FLAG = 0;
 unsigned int BSD_FLAG = 0;
 unsigned int BED_FLAG = 0;
@@ -13,14 +12,29 @@ unsigned int Extend_Flag = 0;
 unsigned int ACK_FLAG;
 unsigned char BIT_TO_SAVE;
 
+unsigned char Vetor_ID_A[11];
+unsigned char Vetor_DLC[4];
+unsigned char Vetor_ID_B[18];
+unsigned char Vetor_DATA[64];
+unsigned char Vetor_CRC[15];
+
+
+unsigned int Value_ID_A;
+unsigned int Value_DLC;
+unsigned int Value_ID_B;
+unsigned int Value_DATA;
+unsigned int Value_CRC;
+
+unsigned int num = 0;
+
 //Data Base Frame Format
-unsigned char frame[112] = {'0',/*SoF*/
-                           '0','0','0','0','0','0','1','0','1','0','0',/*ID_A*/
-                           '0',/*RTR*/
-                           '0',/*IDE*/
-                           '0',/*R0*/
-                           '0','0','0','1',/*DLC*/
-                           '0','0','0','0','0','0','0','1',/*DATA*/
+unsigned char frame1[112] = {'0',/*SoF pos 0*/
+                           '0','0','0','0','0','0','1','0','1','0','0',/*ID_A pos 1-11*/
+                           '0',/*RTR pos 12*/
+                           '0',/*IDE pos 13*/
+                           '0',/*R0 pos 14*/
+                           '0','0','0','1',/*DLC pos 15-18*/
+                           '1','1','1','1','0','0','0','1',/*DATA*/
                            '0','1','0','0','0','0','1','1','0','0','0','0','0','0','0',/*CRC*/
                            '1',/*CRC_DELIMITER*/
                            '0',/*ACK*/
@@ -30,7 +44,7 @@ unsigned char frame[112] = {'0',/*SoF*/
                            };
 
 //Remote Base Frame Formart
-unsigned char frame1[112] = {'0',/*SoF pos0*/
+unsigned char frame2[112] = {'0',/*SoF pos0*/
                            '0','0','0','0','0','0','1','0','1','0','0',/*ID_A pos 1-11*/
                            '1',/*RTR pos 12*/
                            '0',/*IDE pos 13*/
@@ -46,7 +60,7 @@ unsigned char frame1[112] = {'0',/*SoF pos0*/
                            };
 
 //Data Extend Frame Formart
-unsigned char frame2[132] = {'0',/*SoF pos 0*/
+unsigned char frame3[132] = {'0',/*SoF pos 0*/
                            '0','0','0','0','0','0','1','0','1','0','0',/*ID_A pos 1-11*/
                            '1',/*SRR pos 12*/
                            '1',/*IDE pos 13*/
@@ -64,7 +78,7 @@ unsigned char frame2[132] = {'0',/*SoF pos 0*/
                            };
 
 //Remote Extend Frame Formart
-unsigned char frame3[132] = {'0',/*SoF pos 0*/
+unsigned char frame[132] = {'0',/*SoF pos 0*/
                            '0','0','0','0','0','0','1','0','1','0','0',/*ID_A pos 1-11*/
                            '1',/*SRR pos 12*/
                            '1',/*IDE pos 13*/
@@ -125,13 +139,23 @@ unsigned char frame3[132] = {'0',/*SoF pos 0*/
   #define L_EOF 7
   #define L_INTERFRAME_SPACING 3
 
- void number_of_bytes(char bit1, char bit2, char bit3, char bit4)
+ void BinToDec(char bin[], int tam)
  {
-   Value_DLC = ((bit1 - 48)*(8) + (bit2 - 48)*(4) + (bit3 - 48)*(2) + (bit4 - 48)*(1));
-   if(Value_DLC > 8)
+    unsigned int i;
+    num = 0;
+
+   for(i=0; i < tam; i++)
    {
-    Value_DLC = 8; 
+      if(bin[i] == '1')
+      {
+        num = ((num*2) +1);
+      }
+      if(bin[i] == '0')
+      {
+        num = (num*2);
+      }
    }
+
  }
 
 
@@ -165,6 +189,7 @@ unsigned char frame3[132] = {'0',/*SoF pos 0*/
             if(count == L_BIT && frame[0] == '0' )
             {
                 Serial.println("SoF");
+                aux_count = 1;
                 BSD_FLAG = 1;
                 count  = 0;
                 STATE = ID_A;
@@ -173,9 +198,17 @@ unsigned char frame3[132] = {'0',/*SoF pos 0*/
   
   
           case ID_A:
+            
+            Vetor_ID_A[count -1] = frame[aux_count + count - 1];
+
             if(count == L_ID_A && BSD_FLAG == 1 && BED_FLAG == 0)
             {
-                Serial.println("ID_A");
+                
+                BinToDec(Vetor_ID_A, 11);
+                Value_ID_A = num;
+                Serial.print("ID_A: 0x0");
+                Serial.println(Value_ID_A,HEX);
+                aux_count += 11;
                 count  = 0;
                 STATE = RTR_SRR;
             } 
@@ -184,6 +217,7 @@ unsigned char frame3[132] = {'0',/*SoF pos 0*/
           case RTR_SRR:
             if(count == L_BIT)
             {
+                aux_count += 1;
                 Serial.println("RTR_SRR");
                 if(frame[12] == '0')
                 {
@@ -191,6 +225,7 @@ unsigned char frame3[132] = {'0',/*SoF pos 0*/
                   Data_Flag = 1; //Data Frame
                   BED_FLAG = 1;
                   STATE = IDE_0; 
+                  Serial.println("RTR = 0");
                   Serial.println("Data frame");
                   // Base Data Frame or Format_Error
                 }
@@ -206,6 +241,7 @@ unsigned char frame3[132] = {'0',/*SoF pos 0*/
         case IDE_0:
             if(count == L_BIT && BED_FLAG == 1)
             {
+              aux_count += 1;
               Serial.println("IDE_0");
               if(frame[13] == '0')
               {
@@ -227,6 +263,7 @@ unsigned char frame3[132] = {'0',/*SoF pos 0*/
            case IDE_1:
               if(count == L_BIT)
               {
+                aux_count += 1;
                 Serial.println("IDE_1");
                 if(frame[13] == '0')
                 {
@@ -250,6 +287,7 @@ unsigned char frame3[132] = {'0',/*SoF pos 0*/
           case ID_B:
             if(count == L_ID_B)
             {
+              aux_count += 18;
               Serial.println("ID_B");
               count  = 0;
               STATE = RTR;
@@ -261,7 +299,7 @@ unsigned char frame3[132] = {'0',/*SoF pos 0*/
             {
               Serial.println("RTR");
               BED_FLAG = 1;
-              
+              Serial.println(aux_count);
               if(frame[32] =='0')
               {
                 Serial.println("Data frame");
@@ -276,13 +314,14 @@ unsigned char frame3[132] = {'0',/*SoF pos 0*/
                 count  = 0;
                 STATE = R1R0;  
               }     
-              
+              aux_count += 1;
             } 
           break;
   
           case R1R0:
             if(count == L_R1R0 && BED_FLAG == 1)
             {
+              aux_count += 2;
               Serial.println("R1R0");
               count  = 0;
               STATE = DLC;
@@ -295,94 +334,108 @@ unsigned char frame3[132] = {'0',/*SoF pos 0*/
           case R0:
             if(count == L_BIT)
             {
-                if(frame[14] == '0' && Remote_Flag == 0)
-                {
-                  Serial.println("R0");
-                  count  = 0;
-                  STATE = DLC;
-                }
-                else if(frame[14] == '0' && Remote_Flag == 1 && BED_FLAG == 1 )
-                {
-                  Serial.println("R0");
-                  count  = 0;
-                  STATE = DLC;
-  
-                }
-                else if(frame[14] =='1')
-                {
-                  Serial.println("Formart Error");
-                  count  = 0;
-                  STATE = FORMART_ERROR;
-                }
-            } 
+              
+              Serial.println("R0");
+              Serial.println(aux_count);
+              if(frame[aux_count] == '0' && Remote_Flag == 0)
+              {
+                count  = 0;
+                STATE = DLC;
+              }
+              else if(frame[aux_count] == '0' && Remote_Flag == 1 && BED_FLAG == 1 )
+              {
+                count  = 0;
+                STATE = DLC;
+
+              }
+              else if(frame[14] =='1')
+              {
+                Serial.println("Formart Error");
+                count  = 0;
+                STATE = FORMART_ERROR;
+              }
+              aux_count += 1;
+          } 
           break;
   
           case DLC:
+            
+            Vetor_DLC[count -1] = frame[aux_count + count - 1];
+            //Serial.println(aux_count + count-1);
             if(count == L_DLC)
-            {
-                if(Data_Flag == 1 && Extend_Flag == 0)
-                {
-                  number_of_bytes(frame[15], frame[16], frame[17], frame[18]);
-                  Serial.println("DLC");  
-                  Serial.print(Value_DLC);
-                  Serial.println("byte"); 
-                  count  = 0;          
-                  STATE = DATA;
-                }
-                else if(Remote_Flag == 1 && Extend_Flag == 0)
-                {
-  
-                  Serial.println("DLC");   
-                  aux_count = 19;
-                  Remote_Flag = 0;
-                  count  = 0;
-                  STATE = CRC_READ;
-                }
-                else if(Data_Flag == 1 &&  Extend_Flag == 1)
-                {
-                  aux_count = 35;
-                  number_of_bytes(frame[aux_count], frame[aux_count+1], frame[aux_count+2], frame[aux_count+3]);
-                  Serial.println("DLC");  
-                  Serial.print(Value_DLC);
-                  Serial.println("byte"); 
-                  count  = 0;          
-                  STATE = DATA;
-                }
-                else if(Remote_Flag == 1 && Extend_Flag == 1)
-                {
-  
-                  Serial.println("DLC");
-                  Remote_Flag = 0;
-                  Extend_Flag - 0;   
-                  aux_count = 39;
-                  count  = 0;
-                  STATE = CRC_READ;
-                }
+            {               
+              if(Data_Flag == 1 && Extend_Flag == 0)
+              {         
+                BinToDec(Vetor_DLC, 4);
+                Value_DLC = (num > 8) ? 8 : num;  
+                Serial.println("DLC");  
+                Serial.print(Value_DLC);
+                Serial.println("byte"); 
+                aux_count += 4;
+                count  = 0;          
+                STATE = DATA;
+              }
+              else if(Remote_Flag == 1 && Extend_Flag == 0)
+              {
+
+                Serial.println("DLC");   
+                aux_count += 4;
+                Remote_Flag = 0;
+                count  = 0;
+                STATE = CRC_READ;
+              }
+              else if(Data_Flag == 1 &&  Extend_Flag == 1)
+              {
+                aux_count = 35;          
+                BinToDec(Vetor_DLC, 4);
+                Value_DLC = (num > 8) ? 8 : num;
+                Serial.println("DLC");  
+                Serial.print(Value_DLC);
+                Serial.println("byte"); 
+                count  = 0;          
+                STATE = DATA;
+              }
+              else if(Remote_Flag == 1 && Extend_Flag == 1)
+              {
+
+                Serial.println("DLC");
+                Remote_Flag = 0;
+                Extend_Flag - 0;   
+                aux_count = 39;
+                count  = 0;
+                STATE = CRC_READ;
+              }
               
             } 
           break;
   
           case DATA:
+
+            Vetor_DATA[count -1] = frame[aux_count + count - 1];
+            
             if(count == L_DATA)
-            {
-                if(Data_Flag == 1 && Extend_Flag == 0)
-                {
-                  aux_count = 19 + Value_DLC*8; //DATA começa na posição 19. 
-                  Serial.println("DATA");
-                  Data_Flag = 0;
-                  count  = 0;
-                  STATE = CRC_READ;
-                }
-                else if(Data_Flag == 1 && Extend_Flag == 1)
-                {
-                  aux_count = 39 + Value_DLC*8;//DATA começa na posição 39.
-                    Serial.println("DATA");
-                    Data_Flag = 0;
-                    Extend_Flag = 0;
-                    count  = 0;
-                    STATE = CRC_READ;
-  
-                }
+            { 
+              BinToDec(Vetor_DATA, L_DATA);
+              Value_DATA = num;
+              Serial.print("DATA: 0x0");
+              Serial.println(Value_DATA,HEX);
+
+              if(Data_Flag == 1 && Extend_Flag == 0)
+              {
+                aux_count += Value_DLC*8; //DATA começa na posição 19. 
+                Data_Flag = 0;
+                count  = 0;
+                STATE = CRC_READ;
+              }
+              else if(Data_Flag == 1 && Extend_Flag == 1)
+              {
+                aux_count = 39 + Value_DLC*8;//DATA começa na posição 39.
+                Data_Flag = 0;
+                Extend_Flag = 0;
+                count  = 0;
+                STATE = CRC_READ;
+
+              }
             } 
           break;
   

@@ -4,13 +4,12 @@ void setup() {
 
 }
 
-unsigned int num = 0;
 
  void BinToDec(char bin[], int tam)
  {
-   unsigned int i;
-   num = 0;
-   
+    unsigned int i;
+    unsigned int num = 0;
+
    for(i=0; i < tam; i++)
    {
       if(bin[i] == '1')
