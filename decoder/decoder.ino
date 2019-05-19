@@ -24,8 +24,9 @@ unsigned int Value_DLC;
 unsigned int Value_ID_B;
 unsigned int Value_DATA;
 unsigned int Value_CRC;
+int i;
 
-unsigned int num = 0;
+long int num = 0;
 
 enum estados {INACTIVE = 0,COUNTING,BIT_STUFFED} STATE_ENC,STATE_DEC;
 unsigned int count_encoder = 0;
@@ -34,21 +35,6 @@ char last_bit_enc, last_bit_dec;
 
 char BIT_TO_SAVE;
 bool CAPTURE,BSE_FLAG, BSD_FLAG = true; 
-unsigned char frame[112]= {'0',
-                           '1','1','0','0','1','1','1','0','0','1','0',
-                           '0',
-                           '0',
-                           '0',
-                           '0','1','1','1',
-                           '1','1','0','0','1','0','1','0','1','0','1','0','1','0','1','0','1','0','1','0',
-                           '1','0','1','0','1','0','1','0','1','0','1','0','1','0','1','0','1','0','1','0',
-                           '1','0','1','0','1','0','1','0','1','0','1','0','1','0','1','0',
-                           '1','0','1','0','1','1','0','0','1','1','0','0','1','1','1',
-                           '1',
-                           '0',
-                           '1',
-                           '1','1','1','1','1','1','1',
-                           '1','1','1'};
 
  /*Estados*/
  #define BUS_IDLE 0
@@ -165,10 +151,10 @@ void bit_stuffing_decoder(char Bit_Read){
               last_bit_dec = Bit_Read;    
         break;
     }
-  Serial.println("Debugar:");
-  Serial.println(BIT_TO_SAVE);
-  Serial.println(Bit_Read);
-  Serial.println(CAPTURE);
+  //Serial.println("Debugar:");
+  //Serial.println(BIT_TO_SAVE);
+  //Serial.println(Bit_Read);
+  //Serial.println(CAPTURE);
 }
 
 
@@ -219,12 +205,13 @@ void UC_DECODER()
             {
               count = 0;
               STATE = BUS_IDLE;
+              Serial.println("Bus_idle");
             }
           }
         break;
 
 
-        case SoF:
+       /* case SoF:
          // if(count == L_BIT && frame[0] == '0' )
          // {
               Serial.println("SoF");
@@ -233,7 +220,7 @@ void UC_DECODER()
               count  = 0;
               STATE = ID_A;
           //} 
-        break;
+        break;*/
 
 
         case ID_A:
@@ -425,7 +412,8 @@ void UC_DECODER()
               Value_DLC = (num > 8) ? 8 : num;  
               Serial.println("DLC");  
               Serial.print(Value_DLC);
-              Serial.println("byte"); 
+              Serial.println("byte");
+              Serial.print("DATA:");        
               count  = 0;          
               STATE = DATA;
             }
@@ -444,7 +432,8 @@ void UC_DECODER()
               Serial.println("DLC");  
               Serial.print(Value_DLC);
               Serial.println("byte"); 
-              count  = 0;          
+              Serial.print("DATA:");  
+              count  = 0;        
               STATE = DATA;
             }
             else if(Remote_Flag == 1 && Extend_Flag == 1)
@@ -463,9 +452,11 @@ void UC_DECODER()
         case DATA:
 
           Vetor_DATA[count -1] = BIT_TO_SAVE;
+          Serial.print(Vetor_DATA[count -1] -48);
           
           if(count == (Value_DLC*8))
           { 
+            Serial.println("");
             aux_count += Value_DLC*8;
             BinToDec(Vetor_DATA, L_DATA);
             Value_DATA = num;
@@ -567,29 +558,27 @@ void UC_DECODER()
         break;
 
         case EoF:
+          if(count == L_BIT)
+          {
             if(BIT_TO_SAVE == '1')
             {
-              //Serial.println(count);
-              //Serial.println(frame[aux_count + count-1] - 48);    
-              //Serial.println(aux_count+count-1);
-              
-              if(count == L_EOF)
-              {
-                  Serial.println("EOF");
-                  aux_count += 7;
-                  count  = 0;
-                  STATE = INTERFRAME_SPACING;
-              } 
+              Serial.println("EOF");
+              aux_count += 7;
+              BUS_IDLE_FLAG  = 1;
+              count  = 0;
+              STATE = BUS_IDLE;
+
             }
             else
             {
               count  = 0;
               STATE = FORMART_ERROR;
-            }
-            
+            }   
+          } 
+
         break;
 
-        case INTERFRAME_SPACING:
+        /*case INTERFRAME_SPACING:
           if(BIT_TO_SAVE == '1')
             {
               //Serial.println(count);
@@ -611,8 +600,7 @@ void UC_DECODER()
             }
               
         break;
-
-
+        */
         //Error States
 
         case STATE_ERROR:
@@ -673,13 +661,17 @@ void setup() {
 
 }
 
-//char *entrada = "011001110010000011111001010101010101010101010101010101010101010101010101010101011001100111011011111111011001110010000011111001010101010101010101010101010101010101010101010101010101011001100111011011111111";
 
 void loop() {
 
-  for(int i = 0; i<sizeof(frame);i++){
-      bit_stuffing_decoder(frame[i]);
-      UC_DECODER();
+String entrada = "0110011100100001000101010101010101010101010101010101010101010101010101010101010101000001000010100011011111111";
+int strLenEntrada = entrada.length()-1;
+unsigned char frame[strLenEntrada];
+entrada.toCharArray(frame,strLenEntrada);
+
+for(i = 0; i< strLenEntrada;i++){
+  bit_stuffing_decoder(frame[i]);
+  UC_DECODER();
   }
 
 }
