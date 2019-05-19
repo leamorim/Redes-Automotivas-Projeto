@@ -473,9 +473,18 @@ void UC_DECODER()
               Serial.println("DLC");  
               Serial.print(Value_DLC);
               Serial.println("byte");
-              Serial.print("DATA:");        
-              count  = 0;          
-              STATE = DATA;
+              
+              if(Value_DLC == 0)
+              {
+                Serial.println("DATA: 0x00");
+                count  = 0;          
+                STATE = CRC_READ;
+              } 
+              else
+              {
+                count  = 0;          
+                STATE = DATA;
+              }
             }
             else if(Remote_Flag == 1 && Extend_Flag == 0)
             {
@@ -491,10 +500,20 @@ void UC_DECODER()
               Value_DLC = (num > 8) ? 8 : num;
               Serial.println("DLC");  
               Serial.print(Value_DLC);
-              Serial.println("byte"); 
-              Serial.print("DATA:");  
-              count  = 0;        
-              STATE = DATA;
+              Serial.println("byte");  
+
+              if(Value_DLC == 0)
+              {
+                Serial.println("DATA: 0x00");
+                count  = 0;          
+                STATE = CRC_READ;
+              } 
+              else
+              {
+                count  = 0;          
+                STATE = DATA;
+              }
+
             }
             else if(Remote_Flag == 1 && Extend_Flag == 1)
             {
@@ -551,6 +570,7 @@ void UC_DECODER()
         case CRC_READ:
           
           Vetor_CRC[count -1] = BIT_TO_SAVE;
+          Serial.print(BIT_TO_SAVE);
           
           if(count == L_CRC)
           {
@@ -727,7 +747,7 @@ void setup() {
 
 void loop() {
 
-String entrada = "01100111001000001100101010101010101010101010101010101110111010100101011111111";
+String entrada = "011001110010000010000110010110101011011111111";
 int strLenEntrada = entrada.length()+1;
 unsigned char frame[strLenEntrada];
 entrada.toCharArray(frame,strLenEntrada);
