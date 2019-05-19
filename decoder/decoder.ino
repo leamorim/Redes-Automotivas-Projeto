@@ -657,24 +657,24 @@ void UC_DECODER()
         break;
 
         case ACK_DELIMITER:
-            if(count == L_BIT)
-            {
-                  //CRC Checked = CRC_READ
-                  BSD_FLAG = false;
-                  if(BIT_TO_SAVE == '1')
-                  { 
-                    Serial.println("ACK_DELIMITER");
-                    count  = 0;
-                    STATE = EoF;
-                  }
-                  else
-                  {
-                    Serial.println("FORMART ERROR");
-                    count  = 0;
-                    STATE = FORMART_ERROR;       
-                  }                
-                
-            } 
+          if(count == L_BIT)
+          {
+                //CRC Checked = CRC_READ
+                BSD_FLAG = false;
+                if(BIT_TO_SAVE == '1')
+                { 
+                  Serial.println("ACK_DELIMITER");
+                  count  = 0;
+                  STATE = EoF;
+                }
+                else
+                {
+                  Serial.println("FORMART ERROR");
+                  count  = 0;
+                  STATE = FORMART_ERROR;       
+                }                
+              
+          } 
         break;
 
         case EoF:
