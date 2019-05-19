@@ -2,7 +2,7 @@
 #include <stdlib.h>
 
 //QUASE LA
-//STATES
+// DATA AND REMOTE STATES
 
 #define SOF 0
 #define ID_A 1
@@ -19,12 +19,23 @@
 #define INTERFRAME_SPACING 12
 #define WAIT 13
 
+//ERROR FRAME STATES
+#define ERROR_FLAG_STATE 1
+#define ERROR_DELIMITER 2
+
+//OVERLOAD FRAME STATES
+#define OVERLOAD_FLAG_STATE 1
+#define OVERLOAD_DELIMITER 2
+
+
 //CONTROL SIGNALS
 
 #define TQ 1000000
 #define DATA_FRAME 1
 #define REMOTE_FRAME 2
-#define FRAME_TYPE REMOTE_FRAME
+#define ERROR_FRAME 3
+#define OVERLOAD_FRAME 4
+#define FRAME_TYPE DATA_FRAME
 
 //FF = 0 -> Base Format / FF = 1 -> Extended Format
 //FT = 1 -> Data Frame / FT = 2 -> Remote Frame / FT = 3 -> Error Frame / FT = 4 -> Overload Frame
@@ -34,13 +45,24 @@ int FF = 0; //FRAME FORMAT
 int FT = 0; //FRAME TYPE
 int Ecount = 0;
 //char ID[11] = {'9','7','7','7','7','8','7','7','7','7','9'};
-//char dlc[4] = {'D','L','C','E'};
-//char crctest[15] = {'0','0','0','0','0','0','0','0','0','3','3','3','3','3','9'};
+//char dlc[4] = {'0','0','0','1'};
+char dlc[4] = {'D','L','C','E'};
+char crctest[15] = {'C','3','3','3','3','3','3','R','3','3','3','3','3','3','C'};
+char ID[11] = {'I','I','I','I','I','I','I','I','I','I','I'};
+
+char data[0] = {};
 //char data[8] = {'0','1','1','1','1','1','1','0'};
-char ID[11] = {'1','0','0','0','0','1','0','0','0','0','1'};
-char dlc[4] = {'0','0','0','1'};
-char data[8] = {'0','1','1','1','1','1','1','0'};
-int DLC_L = 1;
+/*char data1[64] = {'0','1','1','1','1','1','1','0','0','1','1','1','1','1','1','0',
+                 '2','1','1','1','1','1','1','0','3','1','1','1','1','1','1','0',
+                 '4','1','1','1','1','1','1','0','5','1','1','1','1','1','1','0',
+                 '6','1','1','1','1','1','1','0','7','1','1','1','1','1','1','8'};
+char data[72] = {'0','1','1','1','1','1','1','0','0','1','1','1','1','1','1','0',
+                 '2','1','1','1','1','1','1','0','3','1','1','1','1','1','1','0',
+                 '4','1','1','1','1','1','1','0','5','1','1','1','1','1','1','0',
+                 '6','1','1','1','1','1','1','0','7','1','1','1','1','1','1','8',
+                 'Z','Z','Z','Z','Z','Z','Z','Z'};
+                 */
+int DLC_L = 0;
 //char *data =  malloc(sizeof(char) * (DLC_L*8));
 //char *Frame = (char*) calloc(55,sizeof(char));
 char *Frame = (char*) calloc(47 + DLC_L*8,sizeof(char));
@@ -107,7 +129,6 @@ void bit_stuffing_encoder(){
     ACK_Flag --> Entender o q eh q essa FLAG vai fazer
     BIT_TO_WRITE
     BS_FLAG
-
     Saídas:
     SEND_BIT --> Sinal que indica para o encoder enviar um novo bit ou não
 */
@@ -208,7 +229,9 @@ void bit_stuffing_encoder(){
 
 void setup() {
   Serial.begin(9600);
-  STATE = SOF;
+  STATE = SOF; //In DATA/REMOTE FRAME CASES
+  //STATE = ERROR_FLAG_STATE; //In ERROR FRAME CASES
+  //STATE = OVERLOAD_FLAG_STATE; //In ERROR FRAME CASES
   STATE_DEC = INACTIVE;
   STATE_ENC = INACTIVE;
   //Timer1.initialize(TQ);   //(PARAMETRO EM MICROSEGUNDOS)
@@ -217,22 +240,28 @@ void setup() {
 }
 
 void Frame_Printer(char*v, int ft,int ff,int dlc_l){
-  Serial.println("FRAME:");
-  int i;
-  if(ft = DATA_FRAME){
-  for(i = 0;i <(47 + (dlc_l*8));i++){
+ if(ft == DATA_FRAME){
+    Serial.println("BASE DATA FRAME:");
+  for(int i = 0;i <(47 + (dlc_l*8));i++){
     Serial.print(v[i]);
   }
   }
-  else if(ft = REMOTE_FRAME){
+  else if(ft == REMOTE_FRAME){
+    Serial.println("BASE REMOTE FRAME:");
   for(int i = 0;i <47;i++){
+    Serial.print(v[i]);
+  }
+  }
+  else if(ft == ERROR_FRAME || ft == OVERLOAD_FRAME ){
+    Serial.println("BASE ERROR/OVERLOAD FRAME:");
+  for(int i = 0;i <14;i++){
     Serial.print(v[i]);
   }
   }
     Serial.println();
 }
 
-void Data_Builder(){
+void Data_Builder(int DLC_L){
   char *crc;
   Serial.print("Data Builder\n");
   if(SEND_BIT){
@@ -320,7 +349,7 @@ void Data_Builder(){
       break;
     case crce:
       if((Ecount < 34 + DLC_L*8)){
-        Frame[Ecount] = crc[Ecount - 19 -(DLC_L*8)];
+        Frame[Ecount] = crctest[Ecount - 19 -(DLC_L*8)];
         Serial.print("COUNT CRC:  ");
         Serial.println(Ecount);
       }
@@ -474,7 +503,7 @@ void Remote_Builder(){
       break;
     case crce:
       if(Ecount < 34){
-        Frame[Ecount] = crc[Ecount - 19];
+        Frame[Ecount] = crctest[Ecount - 19];
         Serial.print("COUNT CRC:  ");
         Serial.println(Ecount);
       }
@@ -549,47 +578,140 @@ void Remote_Builder(){
   }
 }
 
-      
-void Error_Builder();
-void Overload_Builder();
+//ERROR FRAME CONSTRUCTOR
 
-void Frame_Builder(int FF,int FT){
+void Error_Builder(){
+  Serial.print("Error Builder\n");
+  if(SEND_BIT){
+  switch(STATE){
+    case ERROR_FLAG_STATE:
+      if(Ecount < 6){
+          Frame[Ecount] = '0';
+          Serial.print("COUNT ERROR FLAG:  ");
+          Serial.println(Ecount);
+        }
+        else {
+          STATE = ERROR_DELIMITER;
+          Ecount--;
+          Serial.print("COUNT ERROR FLAG:  ");
+          Serial.println(Ecount);
+          //0 | 1 2 3 4 5 6 7  8 9 10 11 | 12 | 13 | 14 |
+        }
+        BS_FLAG = true;
+        Serial.print("ERROR_FLAG_STATE: ");
+        Serial.println(Frame[Ecount]);
+        break;
+    case ERROR_DELIMITER:
+      if(Ecount < 14){
+            Frame[Ecount] = '1';
+            Serial.print("COUNT ERROR DELIMITER:  ");
+            Serial.println(Ecount);
+          }
+          else {
+            STATE = WAIT;
+            Ecount--;
+            Serial.print("COUNT ERROR DELIMITER:  ");
+            Serial.println(Ecount);
+            //0 | 1 2 3 4 5 6 7  8 9 10 11 | 12 | 13 | 14 |
+          }
+          BS_FLAG = true;
+          Serial.print("ERROR_DELIMITER: ");
+          Serial.println(Frame[Ecount]);
+          break;
+    case WAIT:
+      Serial.println("FRAME END");
+      break;     
+      } 
+      BIT_TO_WRITE = Frame[Ecount];
+      Ecount++; 
+  }  
+}
+
+//OVERLOAD FRAME CONSTRUCTOR
+
+void Overload_Builder(){
+  Serial.print("Overload Builder\n");
+  if(SEND_BIT){
+  switch(STATE){
+    case OVERLOAD_FLAG_STATE:
+      if(Ecount < 6){
+          Frame[Ecount] = '0';
+          Serial.print("COUNT OVERLOAD FLAG:  ");
+          Serial.println(Ecount);
+        }
+        else {
+          STATE = OVERLOAD_DELIMITER;
+          Ecount--;
+          Serial.print("COUNT OVERLOAD FLAG:  ");
+          Serial.println(Ecount);
+          //0 | 1 2 3 4 5 6 7  8 9 10 11 | 12 | 13 | 14 |
+        }
+        BS_FLAG = true;
+        Serial.print("OVERLOAD FLAG: ");
+        Serial.println(Frame[Ecount]);
+        break;
+    case OVERLOAD_DELIMITER:
+      if(Ecount < 14){
+            Frame[Ecount] = '1';
+            Serial.print("COUNT OVERLOAD DELIMITER:  ");
+            Serial.println(Ecount);
+          }
+          else {
+            STATE = WAIT;
+            Ecount--;
+            Serial.print("COUNT OVERLOAD DELIMITER:  ");
+            Serial.println(Ecount);
+            //0 | 1 2 3 4 5 6 7  8 9 10 11 | 12 | 13 | 14 |
+          }
+          BS_FLAG = true;
+          Serial.print("OVERLAOD_DELIMITER: ");
+          Serial.println(Frame[Ecount]);
+          break;
+    case WAIT:
+      Serial.println("FRAME END");
+      break;     
+      } 
+      BIT_TO_WRITE = Frame[Ecount];
+      Ecount++; 
+  }  
+}      
+
+void Frame_Builder(int FF,int FT,int DLC_L){
   // Base Frame Builders
+  if(DLC_L > 8){
+    DLC_L = 8;
+    }
   if(FF == 0){
     switch(FRAME_TYPE){
       case DATA_FRAME:
-        Data_Builder();
+        Data_Builder(DLC_L);
         break;
 
       case REMOTE_FRAME:
         Remote_Builder();
         break;
 
-      /*case ERROR_FRAME:
-        Error_Builder()
+      case ERROR_FRAME:
+        Error_Builder();
         break;
-
       case OVERLOAD_FRAME:
-        Overload_Builder()
+        Overload_Builder();
         break;
-        */
     }
   }
   // Extended Frame Builders
   else{
     switch(FT){
       case DATA_FRAME:
-        Data_Builder();
+        Data_Builder(DLC_L);
         break;
 /*
       case REMOTE_FRAME:
         Remote_Builder()
         break;
-
       case ERROR_FRAME:
         Error_Builder()
         break;
-
       case OVERLOAD_FRAME:
         Overload_Builder()
         break;
@@ -600,7 +722,11 @@ void Frame_Builder(int FF,int FT){
 
 void loop() {
   Serial.flush();
-  Frame_Builder(FF,FT);
+  Serial.print("DLC_L PRE: ");
+  Serial.println(DLC_L);
+  Frame_Builder(FF,FT,DLC_L);
+  Serial.print("DLC_L AFTER: ");
+  Serial.println(DLC_L);
   bit_stuffing_encoder();
   Serial.flush();
   Serial.print("FRAMEPRINT: ");
@@ -611,4 +737,3 @@ void loop() {
   }*/
   //delay(300);
 }
-  // put your main code here, to run repeatedly:
