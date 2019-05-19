@@ -4,20 +4,28 @@
 //QUASE LA
 // DATA AND REMOTE STATES
 
-#define SOF 0
-#define ID_A 1
-#define RTR 2
-#define IDE 3
-#define R0 4
-#define DLC 5
-#define DATA 6
-#define crce 7
-#define CRC_DELIMITER 8
-#define ACK_SLOT 9
-#define ACK_DELIMITER 10
-#define EoF 11
-#define INTERFRAME_SPACING 12
+#define SOF   0
+#define ID_A  1
+#define RTR   2
+#define IDE   3
+#define R0    4
+#define DLC   5
+#define DATA  6
+#define crce  7
+#define CRC_DELIMITER       8
+#define ACK_SLOT            9
+#define ACK_DELIMITER       10
+#define EoF                 11
+#define INTERFRAME_SPACING  12
+
+#define SRR 14
+#define R1  15
+#define R2  16
+#define IDB 17
+
 #define WAIT 13
+
+
 
 //ERROR FRAME STATES
 #define ERROR_FLAG_STATE 1
@@ -37,36 +45,46 @@
 #define OVERLOAD_FRAME 4
 #define FRAME_TYPE DATA_FRAME
 
+#define BASE 0
+#define EXTENDED 1
+#define FRAME_FORMAT EXTENDED
+
 //FF = 0 -> Base Format / FF = 1 -> Extended Format
 //FT = 1 -> Data Frame / FT = 2 -> Remote Frame / FT = 3 -> Error Frame / FT = 4 -> Overload Frame
 
+//VECTORS FOR TESTING WITH FICTIONAL VALUES FOR MORE ACCURATE DEBUGGING
+
 volatile byte STATE;
-int FF = 0; //FRAME FORMAT
-int FT = 0; //FRAME TYPE
+int FF = FRAME_FORMAT; //FRAME FORMAT
+int FT = FRAME_TYPE; //FRAME TYPE
 int Ecount = 0;
 //char ID[11] = {'9','7','7','7','7','8','7','7','7','7','9'};
 //char dlc[4] = {'0','0','0','1'};
 char dlc[4] = {'D','L','C','E'};
 char crctest[15] = {'C','3','3','3','3','3','3','R','3','3','3','3','3','3','C'};
 char ID[11] = {'I','I','I','I','I','I','I','I','I','I','I'};
+char idb[18] = {'S','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','S'};
 
-char data[0] = {};
-//char data[8] = {'0','1','1','1','1','1','1','0'};
+// DATA VECTORS FOR TESTING
+//char data[0] = {};
+char data[8] = {'0','1','1','1','1','1','1','0'};
 /*char data1[64] = {'0','1','1','1','1','1','1','0','0','1','1','1','1','1','1','0',
                  '2','1','1','1','1','1','1','0','3','1','1','1','1','1','1','0',
                  '4','1','1','1','1','1','1','0','5','1','1','1','1','1','1','0',
                  '6','1','1','1','1','1','1','0','7','1','1','1','1','1','1','8'};
+               
 char data[72] = {'0','1','1','1','1','1','1','0','0','1','1','1','1','1','1','0',
                  '2','1','1','1','1','1','1','0','3','1','1','1','1','1','1','0',
                  '4','1','1','1','1','1','1','0','5','1','1','1','1','1','1','0',
                  '6','1','1','1','1','1','1','0','7','1','1','1','1','1','1','8',
                  'Z','Z','Z','Z','Z','Z','Z','Z'};
                  */
-int DLC_L = 0;
+                 
+int DLC_L = 1;
 //char *data =  malloc(sizeof(char) * (DLC_L*8));
 //char *Frame = (char*) calloc(55,sizeof(char));
-char *Frame = (char*) calloc(47 + DLC_L*8,sizeof(char));
-char *printvec;
+//char *Frame = (char*) calloc(47 + DLC_L*8,sizeof(char));  //BASE FRAME CREATION
+char *Frame = (char*) calloc(67 + DLC_L*8,sizeof(char));  //EXTENDED FRAME CREATION
 
 ////Bit stuffing module variables
 
@@ -239,27 +257,45 @@ void setup() {
 
 }
 
-void Frame_Printer(char*v, int ft,int ff,int dlc_l){
- if(ft == DATA_FRAME){
-    Serial.println("BASE DATA FRAME:");
-  for(int i = 0;i <(47 + (dlc_l*8));i++){
-    Serial.print(v[i]);
+void Frame_Printer(char*v,int ff,int ft,int dlc_l){
+  if(ff == BASE){
+   if(ft == DATA_FRAME){
+      Serial.println("BASE DATA FRAME:");
+      for(int i = 0;i <(47 + (dlc_l*8));i++){
+        Serial.print(v[i]);
+      }
+    }
+    else if(ft == REMOTE_FRAME){
+      Serial.println("BASE REMOTE FRAME:");
+      for(int i = 0;i <47;i++){
+        Serial.print(v[i]);
+      }
+    }
+    else if(ft == ERROR_FRAME || ft == OVERLOAD_FRAME ){
+      Serial.println("BASE ERROR/OVERLOAD FRAME:");
+      for(int i = 0;i <14;i++){
+        Serial.print(v[i]);
+      }
+    }
   }
+  else if(ff == EXTENDED){
+    if(ft == DATA_FRAME){
+      Serial.println("EXTENDED DATA FRAME:");
+      for(int i = 0;i <(67 + (dlc_l*8));i++){
+        Serial.print(v[i]);
+      }
+    }
+    else if(ft == REMOTE_FRAME){
+        Serial.println("EXTENDED REMOTE FRAME:");
+      for(int i = 0;i <67;i++){
+        Serial.print(v[i]);
+      }
+    }
   }
-  else if(ft == REMOTE_FRAME){
-    Serial.println("BASE REMOTE FRAME:");
-  for(int i = 0;i <47;i++){
-    Serial.print(v[i]);
-  }
-  }
-  else if(ft == ERROR_FRAME || ft == OVERLOAD_FRAME ){
-    Serial.println("BASE ERROR/OVERLOAD FRAME:");
-  for(int i = 0;i <14;i++){
-    Serial.print(v[i]);
-  }
-  }
-    Serial.println();
+      Serial.println();
 }
+
+// BASE FRAME BUILDERS
 
 void Data_Builder(int DLC_L){
   char *crc;
@@ -577,7 +613,380 @@ void Remote_Builder(){
       Ecount++; 
   }
 }
+//EXTENDED FRAME CONSTRUCTORS
 
+void Ex_Data_Builder(int DLC_L){
+  char *crc;
+  Serial.print("Extended Data Builder\n");
+  if(SEND_BIT){
+  switch(STATE){
+    case SOF:
+      Serial.print("COUNT SOF:  ");
+      Serial.println(Ecount);
+      STATE = ID_A;
+      Frame[Ecount] = '0';
+      BS_FLAG = true;
+      Serial.print("SOF: ");
+      Serial.println(Frame[Ecount]);
+      break;
+    case ID_A:        // 1 - 11 position
+      if(Ecount < 12){
+        Frame[Ecount] = ID[Ecount-1];
+      }
+      else {
+        STATE = SRR;
+        Ecount--;
+        //0 | 1 2 3 4 5 6 7  8 9 10 11 | 12 | 13 | 14 |
+      }
+      Serial.print("COUNT ID:  ");
+      Serial.println(Ecount);
+      Serial.print("IDA: ");
+      Serial.println(Frame[Ecount]);
+      break;
+    case SRR:
+      Frame[Ecount] = '1'; // 12 position
+      STATE = IDE;
+      Serial.print("COUNT RTR:  ");
+      Serial.println(Ecount);
+      Serial.print("RTR: ");
+      Serial.println(Frame[Ecount]);
+      break;
+    case IDE:
+      Frame[Ecount] = '1';  // 13 position
+      STATE = IDB;
+      Serial.print("COUNT IDE:  ");
+      Serial.println(Ecount);
+      Serial.print("IDE: ");
+      Serial.println(Frame[Ecount]);
+      break;
+    case IDB:
+    if(Ecount < 32){
+        Frame[Ecount] = idb[Ecount-14]; //14 - 31 position
+      }
+      else {
+        STATE = RTR;
+        Ecount--;
+        //0 | 1 2 3 4 5 6 7  8 9 10 11 | 12 | 13 | 14 |
+      }
+      Serial.print("COUNT ID:  ");
+      Serial.println(Ecount);
+      Serial.print("IDA: ");
+      Serial.println(Frame[Ecount]);
+      break;
+      
+    case RTR:
+      Frame[Ecount] = '0';   // 32 position
+      STATE = R1;
+      Serial.print("COUNT RZERO:  ");
+      Serial.println(Ecount);
+      Serial.print("R0: ");
+      Serial.println(Frame[Ecount]);
+      break;
+    case R1:
+      Frame[Ecount] = '0';   // 33 position
+      STATE = R2;
+      Serial.print("COUNT RZERO:  ");
+      Serial.println(Ecount);
+      Serial.print("R0: ");
+      Serial.println(Frame[Ecount]);
+      break;
+    case R2:
+      Frame[Ecount] = '0';   // 34 position
+      STATE = DLC;
+      Serial.print("COUNT RZERO:  ");
+      Serial.println(Ecount);
+      Serial.print("R0: ");
+      Serial.println(Frame[Ecount]);
+      break;
+    case DLC:
+      if(Ecount < 39){
+        Frame[Ecount] = dlc[Ecount-35];   // 35 - 38
+        Serial.print("COUNT DLC:  ");
+        Serial.println(Ecount);
+      }
+      else {
+        STATE = DATA;
+        crc = MakeCRC(Frame); // N esta funcionando no momento
+        Ecount--;
+        Serial.print("COUNT DLC:  ");
+        Serial.println(Ecount);
+        //0 | 1 2 3 4 5 6 7  8 9 10 11 | 12 | 13 | 14 |
+      }
+
+      Serial.print("DLC: ");
+      Serial.println(Frame[Ecount]);
+      break;
+    case DATA:
+      if((Ecount < 39 + (DLC_L*8)) && (DLC_L != 0)){
+          Frame[Ecount] = data[Ecount-39];   // 35 (+DLC_L) - 38 (+DLC_L)
+          Serial.print("COUNT DATA:  ");
+          Serial.println(Ecount);
+        }
+        else {
+          crc = MakeCRC(Frame); // N esta funcionando no momento
+          STATE = crce;
+          Ecount--;
+          Serial.print("COUNT ATA:  ");
+          Serial.println(Ecount);
+          //0 | 1 2 3 4 5 6 7  8 9 10 11 | 12 | 13 | 14 |
+        }
+  
+        Serial.print("DATA: ");
+        Serial.println(Frame[Ecount]);
+        break;
+    case crce:
+      if(Ecount < 54 + (DLC_L*8)){      // 39(+DLC_L) - 53(+DLC_L) Position
+        Frame[Ecount] = crctest[Ecount - 39 - (DLC_L*8)];
+        Serial.print("COUNT CRC:  ");
+        Serial.println(Ecount);
+      }
+      else {
+        STATE = CRC_DELIMITER;
+        Ecount--;
+        BS_FLAG = false;
+        Serial.print("COUNT CRC:  ");
+        Serial.println(Ecount);
+        //0 | 1 2 3 4 5 6 7  8 9 10 11 | 12 | 13 | 14 |
+      }
+      Serial.print("CRC: ");
+      Serial.println(Frame[Ecount]);
+      break;
+      //break;
+    case CRC_DELIMITER:       //54 (+DLC_L) Position
+      STATE = ACK_SLOT;
+      Frame[Ecount] = 'D';
+      Serial.print("CRC_DELIMITER: ");
+      Serial.println(Frame[Ecount]);
+      break;
+    case ACK_SLOT:            //55 (+DLC_L) Position
+      STATE = ACK_DELIMITER;
+      Frame[Ecount] = 'S';  // First Encoder writes RECESSIVE bit
+      Serial.print("ACK_SLOT: ");
+      Serial.println(Frame[Ecount]);
+      break;
+    case ACK_DELIMITER:        //56 (+DLC_L) Position
+      STATE = EoF;
+      Frame[Ecount] = 'A';
+      Serial.println("ACK_DELIMITER");
+      Serial.println(Frame[Ecount]);
+      break;
+    case EoF:
+      if(Ecount < 64 + (DLC_L*8)){        // 57 (+DLC_L) - 63 (+DLC_L)
+        Frame[Ecount] = '1';
+        Serial.print("COUNT EOF:  ");
+        Serial.println(Ecount);
+      }
+      else {
+        STATE = INTERFRAME_SPACING;
+        Ecount--;
+        //0 | 1 2 3 4 5 6 7  8 9 10 11 | 12 | 13 | 14 |
+        Serial.print("COUNT EOF:  ");
+        Serial.println(Ecount);
+      }
+      Serial.print("EOF: ");
+      Serial.println(Frame[Ecount]);
+      break;
+    case INTERFRAME_SPACING:    //64 (+DLC_L) - 66 (+DLC_L) Position
+      if(Ecount < 67 + (DLC_L*8)){
+        Frame[Ecount] = 'S';
+        Serial.print("COUNT INTERFRAME SPACING:  ");
+        Serial.println(Ecount);
+      }
+      else {
+        STATE = WAIT;
+        Ecount--;
+        Serial.print("COUNT INTERFRAME SPACING:  ");
+        Serial.println(Ecount);
+        //0 | 1 2 3 4 5 6 7  8 9 10 11 | 12 | 13 | 14 |
+      }
+      Serial.print("INTERFRAME SPACING: ");
+      Serial.println(Frame[Ecount]);
+      break;
+    case WAIT:
+      Serial.println("FRAME END");
+      break;     
+      }
+      BIT_TO_WRITE = Frame[Ecount];
+      Ecount++; 
+  }
+}
+
+void Ex_Remote_Builder(){
+  char *crc;
+  Serial.print("Extended Remote Builder\n");
+  if(SEND_BIT){
+  switch(STATE){
+    case SOF:
+      Serial.print("COUNT SOF:  ");
+      Serial.println(Ecount);
+      STATE = ID_A;
+      Frame[Ecount] = '0';
+      BS_FLAG = true;
+      Serial.print("SOF: ");
+      Serial.println(Frame[Ecount]);
+      break;
+    case ID_A:        // 1 - 11 position
+      if(Ecount < 12){
+        Frame[Ecount] = ID[Ecount-1];
+      }
+      else {
+        STATE = SRR;
+        Ecount--;
+        //0 | 1 2 3 4 5 6 7  8 9 10 11 | 12 | 13 | 14 |
+      }
+      Serial.print("COUNT ID:  ");
+      Serial.println(Ecount);
+      Serial.print("IDA: ");
+      Serial.println(Frame[Ecount]);
+      break;
+    case SRR:
+      Frame[Ecount] = '1'; // 12 position
+      STATE = IDE;
+      Serial.print("COUNT RTR:  ");
+      Serial.println(Ecount);
+      Serial.print("RTR: ");
+      Serial.println(Frame[Ecount]);
+      break;
+    case IDE:
+      Frame[Ecount] = '1';  // 13 position
+      STATE = IDB;
+      Serial.print("COUNT IDE:  ");
+      Serial.println(Ecount);
+      Serial.print("IDE: ");
+      Serial.println(Frame[Ecount]);
+      break;
+    case IDB:
+    if(Ecount < 32){
+        Frame[Ecount] = idb[Ecount-14]; //14 - 31 position
+      }
+      else {
+        STATE = RTR;
+        Ecount--;
+        //0 | 1 2 3 4 5 6 7  8 9 10 11 | 12 | 13 | 14 |
+      }
+      Serial.print("COUNT ID:  ");
+      Serial.println(Ecount);
+      Serial.print("IDA: ");
+      Serial.println(Frame[Ecount]);
+      break;
+      
+    case RTR:
+      Frame[Ecount] = '1';   // 32 position
+      STATE = R1;
+      Serial.print("COUNT RZERO:  ");
+      Serial.println(Ecount);
+      Serial.print("R0: ");
+      Serial.println(Frame[Ecount]);
+      break;
+    case R1:
+      Frame[Ecount] = '0';   // 33 position
+      STATE = R2;
+      Serial.print("COUNT RZERO:  ");
+      Serial.println(Ecount);
+      Serial.print("R0: ");
+      Serial.println(Frame[Ecount]);
+      break;
+    case R2:
+      Frame[Ecount] = '0';   // 34 position
+      STATE = DLC;
+      Serial.print("COUNT RZERO:  ");
+      Serial.println(Ecount);
+      Serial.print("R0: ");
+      Serial.println(Frame[Ecount]);
+      break;
+    case DLC:
+      if(Ecount < 39){
+        Frame[Ecount] = dlc[Ecount-35];   // 35 - 38
+        Serial.print("COUNT DLC:  ");
+        Serial.println(Ecount);
+      }
+      else {
+        crc = MakeCRC(Frame); // N esta funcionando no momento
+        Ecount--;
+        Serial.print("COUNT DLC:  ");
+        Serial.println(Ecount);
+        //0 | 1 2 3 4 5 6 7  8 9 10 11 | 12 | 13 | 14 |
+      }
+
+      Serial.print("DLC: ");
+      Serial.println(Frame[Ecount]);
+      break;
+    case crce:
+      if(Ecount < 54){      // 39 - 53 Position
+        Frame[Ecount] = crctest[Ecount - 39];
+        Serial.print("COUNT CRC:  ");
+        Serial.println(Ecount);
+      }
+      else {
+        STATE = CRC_DELIMITER;
+        Ecount--;
+        BS_FLAG = false;
+        Serial.print("COUNT CRC:  ");
+        Serial.println(Ecount);
+        //0 | 1 2 3 4 5 6 7  8 9 10 11 | 12 | 13 | 14 |
+      }
+      Serial.print("CRC: ");
+      Serial.println(Frame[Ecount]);
+      break;
+      //break;
+    case CRC_DELIMITER:       //54 Position
+      STATE = ACK_SLOT;
+      Frame[Ecount] = 'D';
+      Serial.print("CRC_DELIMITER: ");
+      Serial.println(Frame[Ecount]);
+      break;
+    case ACK_SLOT:            //55 Position
+      STATE = ACK_DELIMITER;
+      Frame[Ecount] = 'S';  // First Encoder writes RECESSIVE bit
+      Serial.print("ACK_SLOT: ");
+      Serial.println(Frame[Ecount]);
+      break;
+    case ACK_DELIMITER:        //56 Position
+      STATE = EoF;
+      Frame[Ecount] = 'A';
+      Serial.println("ACK_DELIMITER");
+      Serial.println(Frame[Ecount]);
+      break;
+    case EoF:
+      if(Ecount < 64){        // 57-63
+        Frame[Ecount] = '1';
+        Serial.print("COUNT EOF:  ");
+        Serial.println(Ecount);
+      }
+      else {
+        STATE = INTERFRAME_SPACING;
+        Ecount--;
+        //0 | 1 2 3 4 5 6 7  8 9 10 11 | 12 | 13 | 14 |
+        Serial.print("COUNT EOF:  ");
+        Serial.println(Ecount);
+      }
+      Serial.print("EOF: ");
+      Serial.println(Frame[Ecount]);
+      break;
+    case INTERFRAME_SPACING:    //64 - 66 Position
+      if(Ecount < 67){
+        Frame[Ecount] = 'S';
+        Serial.print("COUNT INTERFRAME SPACING:  ");
+        Serial.println(Ecount);
+      }
+      else {
+        STATE = WAIT;
+        Ecount--;
+        Serial.print("COUNT INTERFRAME SPACING:  ");
+        Serial.println(Ecount);
+        //0 | 1 2 3 4 5 6 7  8 9 10 11 | 12 | 13 | 14 |
+      }
+      Serial.print("INTERFRAME SPACING: ");
+      Serial.println(Frame[Ecount]);
+      break;
+    case WAIT:
+      Serial.println("FRAME END");
+      break;     
+      }
+      BIT_TO_WRITE = Frame[Ecount];
+      Ecount++; 
+  }
+}
 //ERROR FRAME CONSTRUCTOR
 
 void Error_Builder(){
@@ -703,19 +1112,12 @@ void Frame_Builder(int FF,int FT,int DLC_L){
   else{
     switch(FT){
       case DATA_FRAME:
-        Data_Builder(DLC_L);
+        Ex_Data_Builder(DLC_L);
         break;
-/*
+        
       case REMOTE_FRAME:
-        Remote_Builder()
+        Ex_Remote_Builder();
         break;
-      case ERROR_FRAME:
-        Error_Builder()
-        break;
-      case OVERLOAD_FRAME:
-        Overload_Builder()
-        break;
-        */
     }
   }
 }
@@ -730,7 +1132,7 @@ void loop() {
   bit_stuffing_encoder();
   Serial.flush();
   Serial.print("FRAMEPRINT: ");
-  Frame_Printer(Frame,FRAME_TYPE,0,DLC_L);
+  Frame_Printer(Frame,FF,FT,DLC_L);
   Serial.flush();
   /*if(Ecount == 55) {
     Ecount = 0;
