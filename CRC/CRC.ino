@@ -1,7 +1,4 @@
-void setup(){
-    Serial.begin(115200);
-}
-
+char *Data, *Result;
 char *MakeCRC(char *BitString)
    {
    static char Res[16];                                 // CRC Result
@@ -38,14 +35,16 @@ char *MakeCRC(char *BitString)
    return(Res);
    }
 
-// A simple test driver:
-
-
+void setup(){
+    Serial.begin(115200);
+                                         // Declare two strings
+    Data = "01100111001000001110101010101010101010101010101010101010101010101010";
+    Result = MakeCRC(Data);                                    // Calculate CRC
+    Serial.println(Result);
+   
+}
 void loop(){
-  char *Data, *Result;
-  Data = "‭01100111001000010001010101010101010101010101010101010101010101010101010101010101010‬";
-  Result = MakeCRC(Data);                                    // Calculate CRC 
-  Serial.print(Result);
-  Serial.println("fim");
-  delay(10000);
+    Result = MakeCRC(Data);                                    // Calculate CRC
+    Serial.println(Result);
+    delay(1000);
 }
