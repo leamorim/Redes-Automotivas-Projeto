@@ -597,16 +597,15 @@ void UC_DECODER()
         case DLC:
           
           Vetor_DLC[count - 1] = BIT_TO_SAVE;
-          Vetor_Frame[count_frame + count - 1] = BIT_TO_SAVE;
 
           if(count == L_DLC)
           { 
             count_frame += 4;              
             if(Data_Flag == 1 && Extend_Flag == 0)
-            {         
-              BinToDec(Vetor_DLC, 4);
-              Value_DLC = (num > 8) ? 8 : num;  
               Serial.print("DLC: ");  
+=======
+              Serial.println("DLC");  
+>>>>>>> d64aa878a84ccbd26948481e3e428dba43c5c412
               Serial.print(Value_DLC);
               Serial.println("byte");
               
@@ -942,6 +941,7 @@ void setup() {
   STATE = BUS_IDLE;
 
 }
+
 
 void loop() {
 
