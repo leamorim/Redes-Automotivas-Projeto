@@ -11,49 +11,50 @@
 #define L_SEG1 (L_PROP+L_PH_SEG1)
 #define L_SEG2 L_PH_SEG2
 
-#define SJW 10
+#define SJW 4
 
 enum estados {SYNC = 0,SEG1 = 1,SEG2 = 2} STATE_BT;
 
 unsigned int count = 0;
+int Ph_Error = 0;
 
-
-bool Plot_Tq = false;
-bool Sample_Point = false;
-bool Writing_Point = false;
+volatile bool Plot_Tq = false;
+volatile bool Sample_Point = false;
+volatile bool Writing_Point = false;
 volatile bool Soft_Sync = false;
 volatile bool Hard_Sync = false;
 volatile bool SS_Flag = false;
-volatile bool HS_Flag = false;
-/*
-void HS_ISR() {
-  Hard_Sync = true;
-  HS_Flag = true;
-  Timer1.start();
-  Timer1.attachInterrupt(Inc_Count,TQ);
- // Serial.println(Timer1.read());
-}
 
 void SS_ISR() {
-  if(STATE != SYNC){
+  if(STATE_BT == SEG1){
     Soft_Sync = true;
-    SS_Flag = true;
+    Ph_Error = min(count,SJW);
+    Serial.println("Soft_Sync SEG1");
+    Serial.println(L_SEG1 + Ph_Error);
   }  
+  else if(STATE_BT == SEG2){
+    Ph_Error = min(((L_SEG2 + 1)-count),SJW);
+    if(L_SEG2 - Ph_Error <= count){
+      Serial.println("SS_flag, corte seg2");
+      SS_Flag = true;
+    }
+    Soft_Sync = true;
+    //Serial.println("Soft_Sync SEG2");
+  }
 }
-*/
 
 void Plotter(){// Função que adequa as variáveis para serem plotadas no serial plotter
-  Serial.print(STATE_BT-1);
+  Serial.print(STATE_BT+5);
   Serial.print(",");
-  Serial.print(Plot_Tq-3);
+  Serial.print(Plot_Tq-5);
   Serial.print(",");
-  Serial.print(HS_Flag-5);
+  Serial.println(Hard_Sync-8);
   Serial.print(",");
-  Serial.print(SS_Flag-7);
+  Serial.print(Soft_Sync-11);
   Serial.print(",");
-  Serial.print(Sample_Point-9);
+  Serial.print(Sample_Point-13);
   Serial.print(",");
-  Serial.println(Writing_Point-11); 
+  Serial.println(Writing_Point-15); 
 }
 
 void Inc_Count(){
@@ -62,6 +63,27 @@ void Inc_Count(){
 }
 
 void print_state(){
+  Serial.print("Count: ");
+  Serial.println(count);
+  Serial.print("Ph_Error: ");
+  Serial.println(Ph_Error);
+  
+  if(Hard_Sync){
+    Serial.println("Hard_Sync");
+  }
+  if(Soft_Sync){
+    Serial.println("Soft Sync");
+    if(SS_Flag){
+      Serial.println("corte SEG2");
+    }
+  }
+ 
+  if(Sample_Point){
+    Serial.println("Sample Point");
+  }
+  if(Writing_Point){
+    Serial.println("Writing Point");
+  }
   if(STATE_BT == SYNC){
     Serial.println("SYNC");
   }
@@ -73,14 +95,12 @@ void print_state(){
   }
 }
 
-int Ph_Error = 0;
-
 void UC(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
     Inc_Count();
-    Serial.print("Count: ");
-    Serial.println(count);
     print_state();
-    
+    Writing_Point = false;
+    Sample_Point = false;
+
       switch(STATE_BT){
         case SYNC:
           if(count == L_SYNC){
@@ -90,37 +110,61 @@ void UC(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
           break;
         
         case SEG1:
-          if(count == L_SEG1){
+          if(count == (L_SEG1 +Ph_Error)){
             STATE_BT = SEG2;
+            Sample_Point = true;
             count = 0;
+            Ph_Error = 0;
           }
         
         break;
         
         case SEG2:
-          if(count == L_SEG2){
-            STATE_BT = SYNC;
+          if(count == (L_SEG2 - Ph_Error) || SS_Flag){
+            if(SS_Flag){
+              STATE_BT = SEG1;
+            }
+            else{
+              STATE_BT = SYNC;
+            }
+            Writing_Point = true;
+            SS_Flag = false;
             count = 0;
+            Ph_Error = 0;
           }
         break;
   }
+    Hard_Sync = false;
+    Soft_Sync = false;
+}
+
+
+
+void HS_ISR() {
+  Hard_Sync = true;
+  Timer1.start(); //reinicia timerone
+  Timer1.attachInterrupt(UC,TQ);//reinicia timerone
+  count = 0;
+  STATE_BT = SYNC;//talvez antes da reinicialização do timerone, verificar
+  //Serial.println("Hard_Sync");
 }
 
 
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
   Timer1.initialize(TQ);   //(PARAMETRO EM MICROSEGUNDOS)
   Timer1.attachInterrupt(UC);
   STATE_BT = SYNC;
   count = 0;
   // Attach an interrupt to the ISR vector
- // attachInterrupt(0, HS_ISR, FALLING);
-  //attachInterrupt(1, SS_ISR, FALLING);
+  attachInterrupt(0, HS_ISR, FALLING);
+  attachInterrupt(1, SS_ISR, FALLING);
 }
 
 
 void loop() {
   
   //Plotter();
+
 }
