@@ -126,9 +126,7 @@ char *MakeCRC(char *BitString)
 
    return(Res);
    }
-
 ///FIM DO MÓDULO DE CRC
-
 
 void bit_stuffing_decoder(char Bit_Read){
  /* Entradas:
@@ -140,8 +138,6 @@ void bit_stuffing_decoder(char Bit_Read){
     BSE_FLAG (Flag de Erro)
     CAPTURE (Sinal que manda o decoder capturar ou não o sinal)
  */   
-
-
 //Assigns são feitos para estas saídas em TODOS os estados
 
     switch (STATE_DEC){
@@ -201,14 +197,7 @@ void bit_stuffing_decoder(char Bit_Read){
               last_bit_dec = Bit_Read;    
         break;
     }
-  //Serial.println("Debugar:");
-  //Serial.println(BIT_TO_SAVE);
-  //Serial.println(Bit_Read);
-  //Serial.println(CAPTURE);
 }
-
-
-
 
  long int BinToDec(char bin[], int tam)
  {
@@ -295,10 +284,7 @@ void bit_stuffing_decoder(char Bit_Read){
     {
       Serial.print("F");
     }
-
-
  }
-
 
 void UC_DECODER()
  {
@@ -540,12 +526,9 @@ void UC_DECODER()
             count  = 0;
             STATE = DLC;
           }
-
         break;       
 
-
         //States Extend
-
         case R0:
  
           Vetor_Frame[count_frame + count - 1] = BIT_TO_SAVE;
@@ -565,7 +548,6 @@ void UC_DECODER()
             {
               count  = 0;
               STATE = DLC;
-
             }
         } 
         break;
@@ -601,7 +583,7 @@ void UC_DECODER()
             }
             else if(Remote_Flag == 1 && Extend_Flag == 0)
             {
-              //Remote_Flag = 0;
+              Remote_Flag = 0;
               count  = 0;
               STATE = CRC_READ;
             }
@@ -623,9 +605,9 @@ void UC_DECODER()
             else if(Remote_Flag == 1 && Extend_Flag == 1)
             {
               Serial.println("DATA: 0x00");
-              //Remote_Flag = 0;
-              //Extend_Flag - 0;
-              //BSD_FLAG = false;     
+              Remote_Flag = 0;
+              Extend_Flag - 0;
+              BSD_FLAG = false;     
               count  = 0;
               STATE = CRC_READ;
             }
