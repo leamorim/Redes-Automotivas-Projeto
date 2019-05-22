@@ -376,7 +376,7 @@ void UC_DECODER()
           count_frame += 1;
           if(count == L_BIT)
           {
-              //Serial.println("RTR_SRR");
+              Serial.println("RTR_SRR");
               if(BIT_TO_SAVE == '0')
               {
                 count  = 0;
@@ -404,7 +404,7 @@ void UC_DECODER()
             
             if(BIT_TO_SAVE == '0')
             {
-              //Serial.println("IDE_0");
+              Serial.println("IDE_0");
               Serial.println("IDE  = 0");
               Serial.println("Base frame Formart");
               count  = 0;
@@ -426,7 +426,7 @@ void UC_DECODER()
             count_frame += 1;
             if(count == L_BIT)
             {
-              //Serial.println("IDE_1");
+              Serial.println("IDE_1");
               if(BIT_TO_SAVE == '0')
               {
                 Serial.println("RTR = 1");
@@ -441,6 +441,7 @@ void UC_DECODER()
               }
               else if(BIT_TO_SAVE == '1')
               {
+                Serial.println("SRR = 1");
                 Serial.println("IDE = 1");
                 Serial.println("Extend Frame");
                 Extend_Flag = 1;
@@ -493,7 +494,7 @@ void UC_DECODER()
 
           if(count == L_BIT)
           {
-            //Serial.println("RTR");
+            Serial.println("RTR");
             BED_FLAG = true;
 
             if(BIT_TO_SAVE == '0')
@@ -537,7 +538,7 @@ void UC_DECODER()
           if(count == L_BIT)
           {
             
-            //Serial.println("R0");
+            Serial.println("R0");
 
             if((BIT_TO_SAVE == '0' || BIT_TO_SAVE == '1') && Remote_Flag == 0)
             {
@@ -606,8 +607,7 @@ void UC_DECODER()
             {
               Serial.println("DATA: 0x00");
               Remote_Flag = 0;
-              Extend_Flag - 0;
-              BSD_FLAG = false;     
+              Extend_Flag - 0;  
               count  = 0;
               STATE = CRC_READ;
             }
@@ -680,7 +680,7 @@ void UC_DECODER()
           {
               if(BIT_TO_SAVE == '1')
               {
-                //Serial.println("CRC_DELIMITER");
+                Serial.println("CRC_DELIMITER");
                 count  = 0;
                 STATE = ACK_SLOT;
               }
@@ -864,7 +864,7 @@ void setup() {
 
 void loop() {
 
-String entrada = "0110011100100001000101010101010101010101010101010101010101010101010101010101010101000001000010100011011111111";
+String entrada = "010001001001111100000100000111110010100100001010011111001101011111111";
 int strLenEntrada = entrada.length()+1;
 unsigned char frame[strLenEntrada];
 entrada.toCharArray(frame,strLenEntrada);
