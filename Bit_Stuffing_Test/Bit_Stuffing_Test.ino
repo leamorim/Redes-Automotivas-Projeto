@@ -11,21 +11,19 @@ void setup(){
     STATE_ENC = INACTIVE;
 }
 
-bool bit_stuffing_encoder(bool BS_FLAG, char BIT_TO_WRITE){
+void bit_stuffing_encoder(){
 
 /* Entradas:
     Writing_Point
     ACK_Flag --> Entender o q eh q essa FLAG vai fazer
     BIT_TO_WRITE
     BS_FLAG
-
     Saídas:
     SEND_BIT --> Sinal que indica para o encoder enviar um novo bit ou não
 */
-    char CAN_TX;
-    bool SEND_BIT = true;
+  
     //Falta colocar aqui if(Writing_Point) para só escrever quando tive num Writing_Point
-    
+ if(OK){   
     switch (STATE_ENC)
     {
     case INACTIVE:
@@ -43,43 +41,64 @@ bool bit_stuffing_encoder(bool BS_FLAG, char BIT_TO_WRITE){
         break;
     
     case COUNTING:
-        if(count_encoder < 5){
-            if(BIT_TO_WRITE != last_bit_enc){
-                //Serial.println("diferente");
-                count_encoder = 1;
-                CAN_TX = BIT_TO_WRITE;
-                last_bit_enc = BIT_TO_WRITE;
-                SEND_BIT = true;
-            }
-            else{
-                //Serial.println("incremento");
-                count_encoder++;
-                //em tese as próximas duas linhas não são necessárias visto que BIT_TO_WRITE continua igual a last_bit
-                CAN_TX = BIT_TO_WRITE;
-                last_bit_enc = BIT_TO_WRITE;
-                SEND_BIT = true;
-            }
+        if(!BS_FLAG){
+          CAN_TX = BIT_TO_WRITE;
+          STATE_ENC = INACTIVE;
+          count_encoder = 0;
         }
-        else{ //count_encoder igual a 6
-            //STATE_ENC = BIT_STUFFED;//dá pra criar um novo estado mas acho q dá pra deixar tudo nesse estado
-           // Serial.println("BIT STUFFED");
-            SEND_BIT = false;
-            count_encoder = 1;
-            last_bit_enc = BIT_TO_WRITE;
-            if(BIT_TO_WRITE == '0'){
-                CAN_TX = '1';
+        else{
+            if(count_encoder < 5){
+                if(BIT_TO_WRITE != last_bit_enc){
+                    //Serial.println("diferente");
+                    count_encoder = 1;
+                    CAN_TX = BIT_TO_WRITE;
+                    last_bit_enc = BIT_TO_WRITE;
+                    SEND_BIT = true;
+                }
+                else{
+                    //Serial.println("incremento");
+                    count_encoder++;
+                    //em tese as próximas duas linhas não são necessárias visto que BIT_TO_WRITE continua igual a last_bit
+                    CAN_TX = BIT_TO_WRITE;
+                    last_bit_enc = BIT_TO_WRITE;
+                    SEND_BIT = true;
+                }
+                STATE_ENC = COUNTING;
             }
-            else if(BIT_TO_WRITE == '1'){
-                CAN_TX = '0';
+            else{ //count_encoder igual a 6
+                //STATE_ENC = BIT_STUFFED;//dá pra criar um novo estado mas acho q dá pra deixar tudo nesse estado
+               // Serial.println("BIT STUFFED");
+                if(!BS_FLAG){
+                  STATE = INACTIVE;
+                }
+                else{
+                  if(BIT_TO_WRITE == last_bit_enc){
+                    SEND_BIT = false;
+                    count_encoder = 1;
+                    
+                    if(BIT_TO_WRITE == '0'){
+                        CAN_TX = '1';
+                    }
+                    else if(BIT_TO_WRITE == '1'){
+                        CAN_TX = '0';
+                    }
+                    STATE_ENC = BIT_STUFFED;
+                  }
+                  else {
+                    SEND_BIT = true;
+                    count_encoder = 1;
+                    CAN_TX = BIT_TO_WRITE;
+                    last_bit_enc = BIT_TO_WRITE;
+                  }
+                }
             }
-
-            STATE_ENC = BIT_STUFFED;
         }
         break;
 
     case BIT_STUFFED:
         
         CAN_TX = last_bit_enc;
+        count_encoder = 1;
         SEND_BIT = true;
         if(BS_FLAG){
             STATE_ENC = COUNTING;
@@ -87,27 +106,11 @@ bool bit_stuffing_encoder(bool BS_FLAG, char BIT_TO_WRITE){
         else{
             STATE_ENC = INACTIVE;
         }
-
         break;
     }
-
-    Serial.print(CAN_TX);
- /*   Serial.println("ordem: STATE_ENC/CAN_TX/count_encoder/SEND_BIT/last_bit/BIT_TO_WRITE");
-    Serial.print(STATE_ENC);
-    Serial.print("/");
-    Serial.print(CAN_TX);
-    Serial.print("/");
-    Serial.print(count_encoder);
-    Serial.print("/");
-    Serial.print(SEND_BIT);
-    Serial.print("/");
-    Serial.print(last_bit_enc);
-    Serial.print("/");
-    Serial.print(BIT_TO_WRITE);
-    Serial.println("/");
-    */
-    return SEND_BIT;
+ }
 }
+
 
 bool bit_stuffing_decoder(bool BSD_FLAG, char Bit_Read){
  /* Entradas:
