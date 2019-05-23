@@ -1,7 +1,7 @@
 #include <TimerOne.h>
 
 /******ENTRADAS DO MÓDULO*****/
-#define TQ 1000000  //Tempo em Microssegundos
+#define TQ 500000  //Tempo em Microssegundos
 
 #define L_SYNC 1
 #define L_PROP 1
@@ -12,6 +12,12 @@
 #define L_SEG2 L_PH_SEG2
 
 #define SJW 4
+
+#define plot_tq 6
+#define states_bt 7
+#define Spoint 8
+#define Wpoint 9
+
 
 enum estados {SYNC = 0,SEG1 = 1,SEG2 = 2} STATE_BT;
 
@@ -67,6 +73,13 @@ void print_state(){
   Serial.println(count);
   Serial.print("Ph_Error: ");
   Serial.println(Ph_Error);
+
+  if(Plot_Tq){
+    digitalWrite(plot_tq,HIGH);
+  }
+  else{
+    digitalWrite(plot_tq,LOW);    
+  }
   
   if(Hard_Sync){
     Serial.println("Hard_Sync");
@@ -80,18 +93,29 @@ void print_state(){
  
   if(Sample_Point){
     Serial.println("Sample Point");
+    digitalWrite(Spoint,HIGH);
+  }
+  else{
+    digitalWrite(Spoint,LOW);
   }
   if(Writing_Point){
     Serial.println("Writing Point");
+    digitalWrite(Wpoint,HIGH);
+  }
+  else{
+    digitalWrite(Wpoint,LOW);
   }
   if(STATE_BT == SYNC){
     Serial.println("SYNC");
+    digitalWrite(states_bt,HIGH);
   }
   else if(STATE_BT == SEG1){
     Serial.println("SEG1");
+    digitalWrite(states_bt,HIGH);
   }
   else if(STATE_BT == SEG2){
     Serial.println("SEG2");
+    digitalWrite(states_bt,LOW);
   }
 }
 
@@ -146,6 +170,7 @@ void HS_ISR() {
   Timer1.attachInterrupt(UC,TQ);//reinicia timerone
   count = 0;
   STATE_BT = SYNC;//talvez antes da reinicialização do timerone, verificar
+  Writing_Point = true;
   //Serial.println("Hard_Sync");
 }
 
