@@ -25,6 +25,9 @@
 
 #define WAIT 13
 
+// New STATES
+#define ARBITRATION_LOSS_STATE 20
+
 
 
 //ERROR FRAME STATES
@@ -43,13 +46,15 @@
 #define REMOTE_FRAME 2
 #define ERROR_FRAME 3
 #define OVERLOAD_FRAME 4
-#define FRAME_TYPE REMOTE_FRAME
+#define FRAME_TYPE DATA_FRAME
 
 #define BASE 0
 #define EXTENDED 1
-#define FRAME_FORMAT EXTENDED
+#define FRAME_FORMAT BASE
 
 int DLC_L = 8;
+bool BUS_IDLE = true;
+bool ARBITRATION_LOSS =  true;
 
 //FF = 0 -> Base Format / FF = 1 -> Extended Format
 //FT = 1 -> Data Frame / FT = 2 -> Remote Frame / FT = 3 -> Error Frame / FT = 4 -> Overload Frame
@@ -335,7 +340,16 @@ void Data_Builder(int DLC_L){
   Serial.print("Data Builder\n");
   if(SEND_BIT){
   switch(STATE){
+    case ARBITRATION_LOSS_STATE:
+      if (BUS_IDLE){
+        STATE = SOF;
+      }
+      else{
+        STATE = ARBITRATION_LOSS_STATE;
+      }
+      break; 
     case SOF:
+      Ecount = 0;
       Serial.print("COUNT SOF:  ");
       Serial.println(Ecount);
       STATE = ID_A;
@@ -345,28 +359,38 @@ void Data_Builder(int DLC_L){
       Serial.println(Frame[Ecount]);
       break;
     case ID_A:
-      if(Ecount < 11){
-        Frame[Ecount] = ID[Ecount-1];
+      if(!ARBITRATION_LOSS){
+        if(Ecount < 11){
+          Frame[Ecount] = ID[Ecount-1];
+        }
+        else {
+          //OK = false;
+          Frame[Ecount] = ID[Ecount-1];   
+          STATE = RTR;
+          //Ecount--;
+        }
       }
-      else {
-        //OK = false;
-        Frame[Ecount] = ID[Ecount-1];   
-        STATE = RTR;
-        //Ecount--;
+      else{
+        STATE = ARBITRATION_LOSS_STATE;
       }
-      Serial.print("COUNT ID:  ");
-      Serial.println(Ecount);
-      Serial.print("IDA: ");
-      Serial.println(Frame[Ecount]);
-      break;
+        Serial.print("COUNT ID:  ");
+        Serial.println(Ecount);
+        Serial.print("IDA: ");
+        Serial.println(Frame[Ecount]);
+        break;
     case RTR:
-      Frame[Ecount] = '0'; // 12 position
-      STATE = IDE;
-      Serial.print("COUNT RTR:  ");
-      Serial.println(Ecount);
-      Serial.print("RTR: ");
-      Serial.println(Frame[Ecount]);
-      break;
+      if(!ARBITRATION_LOSS){
+        Frame[Ecount] = '0'; // 12 position
+        STATE = IDE;
+      }
+      else{
+        STATE = ARBITRATION_LOSS_STATE;
+      }
+        Serial.print("COUNT RTR:  ");
+        Serial.println(Ecount);
+        Serial.print("RTR: ");
+        Serial.println(Frame[Ecount]);
+        break;
     case IDE:
       Frame[Ecount] = '0';  // 13 position
       STATE = R0;
@@ -507,10 +531,12 @@ void Data_Builder(int DLC_L){
       Serial.println("FRAME END");
       STATE = WAIT;
       while(1);
-      break;     
-      } 
+      break;
+    }
+      if(!ARBITRATION_LOSS){     
       BIT_TO_WRITE = Frame[Ecount];
       Ecount++; 
+      }
   }
       
 }
@@ -519,7 +545,16 @@ void Remote_Builder(){
   Serial.print("Remote Builder\n");
   if(SEND_BIT){
   switch(STATE){
+    case ARBITRATION_LOSS_STATE:
+      if(BUS_IDLE){
+        STATE = SOF;
+      }
+      else{
+        STATE = ARBITRATION_LOSS_STATE;
+      }
+      break; 
     case SOF:
+      Ecount = 0;
       Serial.print("COUNT SOF:  ");
       Serial.println(Ecount);
       STATE = ID_A;
@@ -528,29 +563,39 @@ void Remote_Builder(){
       Serial.println(Frame[Ecount]);
       break;
     case ID_A:
-      if(Ecount < 11){
-        Frame[Ecount] = ID[Ecount-1];
+      if(!ARBITRATION_LOSS){
+        if(Ecount < 11){
+          Frame[Ecount] = ID[Ecount-1];
+        }
+        else {
+          Frame[Ecount] = ID[Ecount-1];
+          STATE = RTR;
+          //Ecount--;
+          //OK = false;
+          //0 | 1 2 3 4 5 6 7  8 9 10 11 | 12 | 13 | 14 |
+        }
       }
-      else {
-        Frame[Ecount] = ID[Ecount-1];
-        STATE = RTR;
-        //Ecount--;
-        //OK = false;
-        //0 | 1 2 3 4 5 6 7  8 9 10 11 | 12 | 13 | 14 |
+      else{
+        STATE = ARBITRATION_LOSS_STATE;
       }
-      Serial.print("COUNT ID:  ");
-      Serial.println(Ecount);
-      Serial.print("IDA: ");
-      Serial.println(Frame[Ecount]);
-      break;
+        Serial.print("COUNT ID:  ");
+        Serial.println(Ecount);
+        Serial.print("IDA: ");
+        Serial.println(Frame[Ecount]);
+        break;
     case RTR:
-      Frame[Ecount] = '1'; // 12 position
-      STATE = IDE;
-      Serial.print("COUNT RTR:  ");
-      Serial.println(Ecount);
-      Serial.print("RTR: ");
-      Serial.println(Frame[Ecount]);
-      break;
+      if(!ARBITRATION_LOSS){
+        Frame[Ecount] = '1'; // 12 position
+        STATE = IDE;
+      }
+      else{
+        STATE = ARBITRATION_LOSS_STATE;
+      }
+        Serial.print("COUNT RTR:  ");
+        Serial.println(Ecount);
+        Serial.print("RTR: ");
+        Serial.println(Frame[Ecount]);
+        break;
     case IDE:
       Frame[Ecount] = '0';  // 13 position
       STATE = R0;
@@ -679,9 +724,11 @@ void Remote_Builder(){
       STATE = WAIT;
       while(1);
       break;     
-      }
+    }
+      if(!ARBITRATION_LOSS){ 
       BIT_TO_WRITE = Frame[Ecount];
       Ecount++; 
+      }
   }
 }
 
@@ -691,7 +738,16 @@ void Ex_Data_Builder(int DLC_L){
   Serial.print("Extended Data Builder\n");
   if(SEND_BIT){
   switch(STATE){
+    case ARBITRATION_LOSS_STATE:
+      if (BUS_IDLE){
+        STATE = SOF;
+      }
+      else{
+        STATE = ARBITRATION_LOSS_STATE;
+      }
+      break; 
     case SOF:
+      Ecount = 0;
       Serial.print("COUNT SOF:  ");
       Serial.println(Ecount);
       STATE = ID_A;
@@ -700,57 +756,81 @@ void Ex_Data_Builder(int DLC_L){
       Serial.println(Frame[Ecount]);
       break;
     case ID_A:        // 1 - 11 position
-      if(Ecount < 11){
-        Frame[Ecount] = ID[Ecount-1];
-      }
-      else {
-        Frame[Ecount] = ID[Ecount-1];
-        //OK = false;
-        STATE = SRR;
-        //Ecount--;
-        //0 | 1 2 3 4 5 6 7  8 9 10 11 | 12 | 13 | 14 |
-      }
-      Serial.print("COUNT ID:  ");
-      Serial.println(Ecount);
-      Serial.print("IDA: ");
-      Serial.println(Frame[Ecount]);
-      break;
+      if(!ARBITRATION_LOSS){
+        if(Ecount < 11){
+          Frame[Ecount] = ID[Ecount-1];
+        }
+        else {
+          Frame[Ecount] = ID[Ecount-1];
+          //OK = false;
+          STATE = SRR;
+          //Ecount--;
+          //0 | 1 2 3 4 5 6 7  8 9 10 11 | 12 | 13 | 14 |
+        }
+        else{
+          STATE = ARBITRATION_LOSS_STATE;
+        }
+        Serial.print("COUNT ID:  ");
+        Serial.println(Ecount);
+        Serial.print("IDA: ");
+        Serial.println(Frame[Ecount]);
+        break;
     case SRR:
-      Frame[Ecount] = '1'; // 12 position
-      STATE = IDE;
-      Serial.print("COUNT RTR:  ");
-      Serial.println(Ecount);
-      Serial.print("RTR: ");
-      Serial.println(Frame[Ecount]);
-      break;
+      if(!ARBITRATION_LOSS){
+        Frame[Ecount] = '1'; // 12 position
+        STATE = IDE;
+      }
+      else{
+        STATE = ARBITRATION_LOSS_STATE;
+      }
+        Serial.print("COUNT RTR:  ");
+        Serial.println(Ecount);
+        Serial.print("RTR: ");
+        Serial.println(Frame[Ecount]);
+        break;
     case IDE:
-      Frame[Ecount] = '1';  // 13 position
-      STATE = IDB;
-      Serial.print("COUNT IDE:  ");
-      Serial.println(Ecount);
-      Serial.print("IDE: ");
-      Serial.println(Frame[Ecount]);
-      break;
+      if(!ARBITRATION_LOSS){
+        Frame[Ecount] = '1';  // 13 position
+        STATE = IDB;
+      }
+      else{
+        STATE = ARBITRATION_LOSS_STATE;
+      }
+        Serial.print("COUNT IDE:  ");
+        Serial.println(Ecount);
+        Serial.print("IDE: ");
+        Serial.println(Frame[Ecount]);
+        break;
     case IDB:
-    if(Ecount < 31){
-        Frame[Ecount] = idb[Ecount-14]; //14 - 31 position
+      if(!ARBITRATION_LOSS){
+        if(Ecount < 31){
+            Frame[Ecount] = idb[Ecount-14]; //14 - 31 position
+          }
+          else {
+            Frame[Ecount] = idb[Ecount-14];
+            //OK = false;
+            STATE = RTR;
+            //Ecount--;
+            //0 | 1 2 3 4 5 6 7  8 9 10 11 | 12 | 13 | 14 |
+          }
       }
-      else {
-        Frame[Ecount] = idb[Ecount-14];
-        //OK = false;
-        STATE = RTR;
-        //Ecount--;
-        //0 | 1 2 3 4 5 6 7  8 9 10 11 | 12 | 13 | 14 |
+      else{
+        STATE = ARBITRATION_LOSS_STATE;
       }
-      Serial.print("COUNT ID:  ");
-      Serial.println(Ecount);
-      Serial.print("IDA: ");
-      Serial.println(Frame[Ecount]);
-      break;
-      
+          Serial.print("COUNT ID:  ");
+          Serial.println(Ecount);
+          Serial.print("IDA: ");
+          Serial.println(Frame[Ecount]);
+          break;
+          
     case RTR:
+    if(!ARBITRATION_LOSS){
       Frame[Ecount] = '0';   // 32 position
       STATE = R1;
+    }
+    else{
+      STATE = ARBITRATION_LOSS_STATE;
+    }
       Serial.print("COUNT RZERO:  ");
       Serial.println(Ecount);
       Serial.print("R0: ");
@@ -899,8 +979,10 @@ void Ex_Data_Builder(int DLC_L){
       while(1);
       break;     
       }
+      if(!ARBITRATION_LOSS){     
       BIT_TO_WRITE = Frame[Ecount];
       Ecount++; 
+      }
   }
 }
 
@@ -908,7 +990,16 @@ void Ex_Remote_Builder(){
   Serial.print("Extended Remote Builder\n");
   if(SEND_BIT){
   switch(STATE){
+    case ARBITRATION_LOSS_STATE:
+      if (BUS_IDLE){
+        STATE = SOF;
+      }
+      else{
+        STATE = ARBITRATION_LOSS_STATE;
+      }
+      break; 
     case SOF:
+      Ecount = 0;
       Serial.print("COUNT SOF:  ");
       Serial.println(Ecount);
       STATE = ID_A;
@@ -917,62 +1008,87 @@ void Ex_Remote_Builder(){
       Serial.println(Frame[Ecount]);
       break;
     case ID_A:        // 1 - 11 position
-      if(Ecount < 11){
-        Frame[Ecount] = ID[Ecount-1];
+      if(!ARBITRATION_LOSS){
+        if(Ecount < 11){
+          Frame[Ecount] = ID[Ecount-1];
+        }
+        else {
+          Frame[Ecount] = ID[Ecount-1];
+          //OK = false;
+          STATE = SRR;
+          //Ecount--;
+          //0 | 1 2 3 4 5 6 7  8 9 10 11 | 12 | 13 | 14 |
+        }
       }
-      else {
-        Frame[Ecount] = ID[Ecount-1];
-        //OK = false;
-        STATE = SRR;
-        //Ecount--;
-        //0 | 1 2 3 4 5 6 7  8 9 10 11 | 12 | 13 | 14 |
+      else{
+        STATE = ARBITRATION_LOSS_STATE;
       }
-      Serial.print("COUNT ID:  ");
-      Serial.println(Ecount);
-      Serial.print("IDA: ");
-      Serial.println(Frame[Ecount]);
-      break;
+        Serial.print("COUNT ID:  ");
+        Serial.println(Ecount);
+        Serial.print("IDA: ");
+        Serial.println(Frame[Ecount]);
+        break;
     case SRR:
-      Frame[Ecount] = '1'; // 12 position
-      STATE = IDE;
-      Serial.print("COUNT RTR:  ");
-      Serial.println(Ecount);
-      Serial.print("RTR: ");
-      Serial.println(Frame[Ecount]);
-      break;
+      if(!ARBITRATION_LOSS){
+        Frame[Ecount] = '1'; // 12 position
+        STATE = IDE;
+      }
+      else{
+        STATE = ARBITRATION_LOSS_STATE;
+      }
+        Serial.print("COUNT RTR:  ");
+        Serial.println(Ecount);
+        Serial.print("RTR: ");
+        Serial.println(Frame[Ecount]);
+        break;
     case IDE:
-      Frame[Ecount] = '1';  // 13 position
-      STATE = IDB;
-      Serial.print("COUNT IDE:  ");
-      Serial.println(Ecount);
-      Serial.print("IDE: ");
-      Serial.println(Frame[Ecount]);
-      break;
+      if(!ARBITRATION_LOSS){
+        Frame[Ecount] = '1';  // 13 position
+        STATE = IDB;
+      }
+      else{
+        STATE = ARBITRATION_LOSS_STATE;
+      }
+        Serial.print("COUNT IDE:  ");
+        Serial.println(Ecount);
+        Serial.print("IDE: ");
+        Serial.println(Frame[Ecount]);
+        break;
     case IDB:
-    if(Ecount < 31){
-        Frame[Ecount] = idb[Ecount-14]; //14 - 31 position
+      if(!ARBITRATION_LOSS){
+        if(Ecount < 31){
+            Frame[Ecount] = idb[Ecount-14]; //14 - 31 position
+          }
+          else {
+            Frame[Ecount] = idb[Ecount-14];
+            //OK = false;
+            STATE = RTR;
+            //Ecount--;
+            //0 | 1 2 3 4 5 6 7  8 9 10 11 | 12 | 13 | 14 |
+          }
       }
-      else {
-        Frame[Ecount] = idb[Ecount-14];
-        //OK = false;
-        STATE = RTR;
-        //Ecount--;
-        //0 | 1 2 3 4 5 6 7  8 9 10 11 | 12 | 13 | 14 |
+      else{
+        STATE = ARBITRATION_LOSS_STATE;
       }
-      Serial.print("COUNT ID:  ");
-      Serial.println(Ecount);
-      Serial.print("IDA: ");
-      Serial.println(Frame[Ecount]);
-      break;
-      
+          Serial.print("COUNT ID:  ");
+          Serial.println(Ecount);
+          Serial.print("IDA: ");
+          Serial.println(Frame[Ecount]);
+          break;
+          
     case RTR:
-      Frame[Ecount] = '1';   // 32 position
-      STATE = R1;
-      Serial.print("COUNT RZERO:  ");
-      Serial.println(Ecount);
-      Serial.print("R0: ");
-      Serial.println(Frame[Ecount]);
-      break;
+      if(!ARBITRATION_LOSS){
+        Frame[Ecount] = '1';   // 32 position
+        STATE = R1;
+      }
+      else{
+        STATE = ARBITRATION_LOSS_STATE;
+      }
+        Serial.print("COUNT RZERO:  ");
+        Serial.println(Ecount);
+        Serial.print("R0: ");
+        Serial.println(Frame[Ecount]);
+        break;
     case R1:
       Frame[Ecount] = '0';   // 33 position
       STATE = R2;
@@ -1096,8 +1212,10 @@ void Ex_Remote_Builder(){
       while(1);
       break;     
       }
+      if(!ARBITRATION_LOSS){     
       BIT_TO_WRITE = Frame[Ecount];
       Ecount++; 
+      }
   }
 }
 
