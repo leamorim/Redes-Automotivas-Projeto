@@ -50,16 +50,16 @@
 int DLC_L = 8;
 bool BUS_IDLE = true;
 bool ARBITRATION_LOSS =  true;
-
-//FF = 0 -> Base Format / FF = 1 -> Extended Format
-//FT = 1 -> Data Frame / FT = 2 -> Remote Frame / FT = 3 -> Error Frame / FT = 4 -> Overload Frame
-
-//VECTORS FOR TESTING WITH FICTIONAL VALUES FOR MORE ACCURATE DEBUGGING
+bool ACK_SLOT_FLAG = false;
+bool ACK_CONFIRM =  true;
 
 volatile byte STATE;
 int FF = FRAME_FORMAT; //FRAME FORMAT
 int FT = FRAME_TYPE; //FRAME TYPE
 int Ecount = 0;
+
+//FF = 0 -> Base Format / FF = 1 -> Extended Format
+//FT = 1 -> Data Frame / FT = 2 -> Remote Frame / FT = 3 -> Error Frame / FT = 4 -> Overload Frame
 
 //TEST CASE 1 - BASE DATA FRAME
 //char ID[11] = {'1','1','0','0','1','1','1','0','0','1','0'};
@@ -439,9 +439,15 @@ void Data_Builder(int DLC_L){
       Serial.println(Frame[Ecount]);
       break;
     case ACK_SLOT:
+      ACK_SLOT_FLAG = true;
       BS_FLAG = false;
-      STATE = ACK_DELIMITER;
       Frame[Ecount] = '1';  // First Encoder writes RECESSIVE bit
+      if(ACK_CONFIRM){
+        STATE = ACK_DELIMITER;
+      }
+      else{
+        STATE = SOF;
+      }
       Serial.print("ACK_SLOT: ");
       Serial.println(Frame[Ecount]);
       break;
@@ -599,9 +605,15 @@ void Remote_Builder(){
       Serial.println(Frame[Ecount]);
       break;
     case ACK_SLOT:
+      ACK_SLOT_FLAG = true;
       BS_FLAG = false;
-      STATE = ACK_DELIMITER;
       Frame[Ecount] = '1';  // First Encoder writes RECESSIVE bit
+      if(ACK_CONFIRM){
+        STATE = ACK_DELIMITER;
+      }
+      else{
+        STATE = SOF;
+      }
       Serial.print("ACK_SLOT: ");
       Serial.println(Frame[Ecount]);
       break;
@@ -816,9 +828,15 @@ void Ex_Data_Builder(int DLC_L){
       Serial.println(Frame[Ecount]);
       break;
     case ACK_SLOT:            //55 (+DLC_L) Position
-      STATE = ACK_DELIMITER;
+      ACK_SLOT_FLAG = true;
       BS_FLAG = false;
       Frame[Ecount] = '1';  // First Encoder writes RECESSIVE bit
+      if(ACK_CONFIRM){
+        STATE = ACK_DELIMITER;
+      }
+      else{
+        STATE = SOF;
+      }
       Serial.print("ACK_SLOT: ");
       Serial.println(Frame[Ecount]);
       break;
@@ -1018,9 +1036,15 @@ void Ex_Remote_Builder(){
       Serial.println(Frame[Ecount]);
       break;
     case ACK_SLOT:            //55 Position
+      ACK_SLOT_FLAG = true;
       BS_FLAG = false;
-      STATE = ACK_DELIMITER;
       Frame[Ecount] = '1';  // First Encoder writes RECESSIVE bit
+      if(ACK_CONFIRM){
+        STATE = ACK_DELIMITER;
+      }
+      else{
+        STATE = SOF;
+      }
       Serial.print("ACK_SLOT: ");
       Serial.println(Frame[Ecount]);
       break;
