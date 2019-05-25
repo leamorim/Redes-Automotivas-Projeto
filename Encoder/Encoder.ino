@@ -161,18 +161,18 @@ void bit_stuffing_encoder(){
   
     //Falta colocar aqui if(Writing_Point) para só escrever quando tive num Writing_Point
  if(OK){   
-    switch (STATE_ENC)
+    switch (STATE)
     {
     case INACTIVE:
         SEND_BIT = true;
         if(BS_FLAG){
-            STATE_ENC = COUNTING;
+            STATE = COUNTING;
             last_bit_enc = BIT_TO_WRITE;
             CAN_TX = BIT_TO_WRITE;
             count_encoder = 1;
         }
         else{
-            STATE_ENC = INACTIVE;
+            STATE = INACTIVE;
             CAN_TX = BIT_TO_WRITE;
         }
         break;
@@ -180,7 +180,7 @@ void bit_stuffing_encoder(){
     case COUNTING:
         if(!BS_FLAG){
           CAN_TX = BIT_TO_WRITE;
-          STATE_ENC = INACTIVE;
+          STATE = INACTIVE;
           count_encoder = 0;
         }
         else{
@@ -200,7 +200,7 @@ void bit_stuffing_encoder(){
                     last_bit_enc = BIT_TO_WRITE;
                     SEND_BIT = true;
                 }
-                STATE_ENC = COUNTING;
+                STATE = COUNTING;
             }
             else{ //count_encoder igual a 6
                 //STATE_ENC = BIT_STUFFED;//dá pra criar um novo estado mas acho q dá pra deixar tudo nesse estado
@@ -219,7 +219,7 @@ void bit_stuffing_encoder(){
                     else if(BIT_TO_WRITE == '1'){
                         CAN_TX = '0';
                     }
-                    STATE_ENC = BIT_STUFFED;
+                    STATE = BIT_STUFFED;
                   }
                   else {
                     SEND_BIT = true;
@@ -238,10 +238,10 @@ void bit_stuffing_encoder(){
         count_encoder = 1;
         SEND_BIT = true;
         if(BS_FLAG){
-            STATE_ENC = COUNTING;
+            STATE = COUNTING;
         }
         else{
-            STATE_ENC = INACTIVE;
+            STATE = INACTIVE;
         }
         break;
     }
@@ -253,13 +253,13 @@ void bit_stuffing_encoder(){
 void setup() {
   Serial.begin(9600);
   if(FT == DATA_FRAME || FT == REMOTE_FRAME){
-    STATE = SOF; //In DATA/REMOTE FRAME CASES
+    STATE_ENC = SOF; //In DATA/REMOTE FRAME CASES
   }
   else if(FT == ERROR_FRAME){
-    STATE = ERROR_FLAG_STATE; //In ERROR FRAME CASES
+    STATE_ENC = ERROR_FLAG_STATE; //In ERROR FRAME CASES
   }
   else if (FT == OVERLOAD_FRAME){
-    STATE = OVERLOAD_FLAG_STATE; //In ERROR FRAME CASES
+    STATE_ENC = OVERLOAD_FLAG_STATE; //In ERROR FRAME CASES
   }
   STATE_DEC = INACTIVE;
   STATE_ENC = INACTIVE;
@@ -320,20 +320,20 @@ void Frame_Printer(char*v,int ff,int ft,int dlc_l){
 void Data_Builder(int DLC_L){
   Serial.print("Data Builder\n");
   if(SEND_BIT){
-  switch(STATE){
+  switch(STATE_ENC){
     case ARBITRATION_LOSS_STATE:
       if (BUS_IDLE){
-        STATE = SOF;
+        STATE_ENC = SOF;
       }
       else{
-        STATE = ARBITRATION_LOSS_STATE;
+        STATE_ENC = ARBITRATION_LOSS_STATE;
       }
       break; 
     case SOF:
       Ecount = 0;
       Serial.print("COUNT SOF:  ");
       Serial.println(Ecount);
-      STATE = ID_A;
+      STATE_ENC = ID_A;
       BS_FLAG = true;
       Frame[Ecount] = '0';
       Serial.print("SOF: ");
@@ -346,11 +346,11 @@ void Data_Builder(int DLC_L){
         }
         else {
           Frame[Ecount] = ID[Ecount-1];   
-          STATE = RTR;
+          STATE_ENC = RTR;
         }
       }
       else{
-        STATE = ARBITRATION_LOSS_STATE;
+        STATE_ENC = ARBITRATION_LOSS_STATE;
       }
         Serial.print("COUNT ID:  ");
         Serial.println(Ecount);
@@ -360,10 +360,10 @@ void Data_Builder(int DLC_L){
     case RTR:
       if(!ARBITRATION_LOSS){
         Frame[Ecount] = '0'; // 12 position
-        STATE = IDE;
+        STATE_ENC = IDE;
       }
       else{
-        STATE = ARBITRATION_LOSS_STATE;
+        STATE_ENC = ARBITRATION_LOSS_STATE;
       }
         Serial.print("COUNT RTR:  ");
         Serial.println(Ecount);
@@ -372,7 +372,7 @@ void Data_Builder(int DLC_L){
         break;
     case IDE:
       Frame[Ecount] = '0';  // 13 position
-      STATE = R0;
+      STATE_ENC = R0;
       Serial.print("COUNT IDE:  ");
       Serial.println(Ecount);
       Serial.print("IDE: ");
@@ -380,7 +380,7 @@ void Data_Builder(int DLC_L){
       break;
     case R0:
       Frame[Ecount] = '0';   // 14 position
-      STATE = DLC;
+      STATE_ENC = DLC;
       Serial.print("COUNT RZERO:  ");
       Serial.println(Ecount);
       Serial.print("R0: ");
@@ -394,7 +394,7 @@ void Data_Builder(int DLC_L){
       }
       else {
         Frame[Ecount] = dlc[Ecount-15];
-        STATE = DATA;
+        STATE_ENC = DATA;
       }
 
       Serial.print("DLC: ");
@@ -412,7 +412,7 @@ void Data_Builder(int DLC_L){
         crc = MakeCRC(Frame);
         Serial.println("CRC" );
         Serial.print(crc);
-        STATE = crce;
+        STATE_ENC = crce;
       }
       Serial.print("DATA: ");
       Serial.println(Frame[Ecount]);
@@ -425,7 +425,7 @@ void Data_Builder(int DLC_L){
       }
       else {
         Frame[Ecount] = crc[Ecount - 19 -(DLC_L*8)];
-        STATE = CRC_DELIMITER;
+        STATE_ENC = CRC_DELIMITER;
         BS_FLAG = false;
       }
       Serial.print("CRC: ");
@@ -433,7 +433,7 @@ void Data_Builder(int DLC_L){
       break;
     case CRC_DELIMITER:
       BS_FLAG = false;
-      STATE = ACK_SLOT;
+      STATE_ENC = ACK_SLOT;
       Frame[Ecount] = '1';
       Serial.print("CRC_DELIMITER: ");
       Serial.println(Frame[Ecount]);
@@ -443,17 +443,17 @@ void Data_Builder(int DLC_L){
       BS_FLAG = false;
       Frame[Ecount] = '1';  // First Encoder writes RECESSIVE bit
       if(ACK_CONFIRM){
-        STATE = ACK_DELIMITER;
+        STATE_ENC = ACK_DELIMITER;
       }
       else{
-        STATE = SOF;
+        STATE_ENC = SOF;
       }
       Serial.print("ACK_SLOT: ");
       Serial.println(Frame[Ecount]);
       break;
     case ACK_DELIMITER:
       BS_FLAG = false;
-      STATE = EoF;
+      STATE_ENC = EoF;
       Frame[Ecount] = '1';
       Serial.println("ACK_DELIMITER");
       Serial.println(Frame[Ecount]);
@@ -468,7 +468,7 @@ void Data_Builder(int DLC_L){
       }
       else {
         Frame[Ecount] = '1';
-        STATE = INTERFRAME_SPACING;
+        STATE_ENC = INTERFRAME_SPACING;
       }
       Serial.print("EOF: ");
       Serial.println(Frame[Ecount]);
@@ -482,14 +482,14 @@ void Data_Builder(int DLC_L){
       }
       else {
         Frame[Ecount] = '1';
-        STATE = WAIT;
+        STATE_ENC = WAIT;
       }
       Serial.print("INTERFRAME SPACING: ");
       Serial.println(Frame[Ecount]);
       break;
     case WAIT:
       Serial.println("FRAME END");
-      STATE = WAIT;
+      STATE_ENC = WAIT;
       while(1);
       break;
     }
@@ -504,20 +504,20 @@ void Data_Builder(int DLC_L){
 void Remote_Builder(){
   Serial.print("Remote Builder\n");
   if(SEND_BIT){
-  switch(STATE){
+  switch(STATE_ENC){
     case ARBITRATION_LOSS_STATE:
       if(BUS_IDLE){
-        STATE = SOF;
+        STATE_ENC = SOF;
       }
       else{
-        STATE = ARBITRATION_LOSS_STATE;
+        STATE_ENC = ARBITRATION_LOSS_STATE;
       }
       break; 
     case SOF:
       Ecount = 0;
       Serial.print("COUNT SOF:  ");
       Serial.println(Ecount);
-      STATE = ID_A;
+      STATE_ENC = ID_A;
       Frame[Ecount] = '0';
       Serial.print("SOF: ");
       Serial.println(Frame[Ecount]);
@@ -529,11 +529,11 @@ void Remote_Builder(){
         }
         else {
           Frame[Ecount] = ID[Ecount-1];
-          STATE = RTR;
+          STATE_ENC = RTR;
         }
       }
       else{
-        STATE = ARBITRATION_LOSS_STATE;
+        STATE_ENC = ARBITRATION_LOSS_STATE;
       }
         Serial.print("COUNT ID:  ");
         Serial.println(Ecount);
@@ -543,10 +543,10 @@ void Remote_Builder(){
     case RTR:
       if(!ARBITRATION_LOSS){
         Frame[Ecount] = '1'; // 12 position
-        STATE = IDE;
+        STATE_ENC = IDE;
       }
       else{
-        STATE = ARBITRATION_LOSS_STATE;
+        STATE_ENC = ARBITRATION_LOSS_STATE;
       }
         Serial.print("COUNT RTR:  ");
         Serial.println(Ecount);
@@ -555,7 +555,7 @@ void Remote_Builder(){
         break;
     case IDE:
       Frame[Ecount] = '0';  // 13 position
-      STATE = R0;
+      STATE_ENC = R0;
       Serial.print("COUNT IDE:  ");
       Serial.println(Ecount);
       Serial.print("IDE: ");
@@ -563,7 +563,7 @@ void Remote_Builder(){
       break;
     case R0:
       Frame[Ecount] = '0';   // 14 position
-      STATE = DLC;
+      STATE_ENC = DLC;
       Serial.print("COUNT RZERO:  ");
       Serial.println(Ecount);
       Serial.print("R0: ");
@@ -578,7 +578,7 @@ void Remote_Builder(){
       else {
         Frame[Ecount] = dlc[Ecount-15];
         crc = MakeCRC(Frame);
-        STATE = crce;
+        STATE_ENC = crce;
       }
 
       Serial.print("DLC: ");
@@ -592,14 +592,14 @@ void Remote_Builder(){
       }
       else {
         Frame[Ecount] = crc[Ecount - 19];
-        STATE = CRC_DELIMITER;
+        STATE_ENC = CRC_DELIMITER;
       }
       Serial.print("CRC: ");
       Serial.println(Frame[Ecount]);
       break;
     case CRC_DELIMITER:
       BS_FLAG = false;
-      STATE = ACK_SLOT;
+      STATE_ENC = ACK_SLOT;
       Frame[Ecount] = '1';
       Serial.print("CRC_DELIMITER: ");
       Serial.println(Frame[Ecount]);
@@ -609,17 +609,17 @@ void Remote_Builder(){
       BS_FLAG = false;
       Frame[Ecount] = '1';  // First Encoder writes RECESSIVE bit
       if(ACK_CONFIRM){
-        STATE = ACK_DELIMITER;
+        STATE_ENC = ACK_DELIMITER;
       }
       else{
-        STATE = SOF;
+        STATE_ENC = SOF;
       }
       Serial.print("ACK_SLOT: ");
       Serial.println(Frame[Ecount]);
       break;
     case ACK_DELIMITER:
       BS_FLAG = false;
-      STATE = EoF;
+      STATE_ENC = EoF;
       Frame[Ecount] = '1';
       Serial.println("ACK_DELIMITER");
       Serial.println(Frame[Ecount]);
@@ -633,7 +633,7 @@ void Remote_Builder(){
       }
       else {
         Frame[Ecount] = '1';
-        STATE = INTERFRAME_SPACING;
+        STATE_ENC = INTERFRAME_SPACING;
       }
       Serial.print("EOF: ");
       Serial.println(Frame[Ecount]);
@@ -647,14 +647,14 @@ void Remote_Builder(){
       }
       else {
         Frame[Ecount] = '1';
-        STATE = WAIT;
+        STATE_ENC = WAIT;
       }
       Serial.print("INTERFRAME SPACING: ");
       Serial.println(Frame[Ecount]);
       break;
     case WAIT:
       Serial.println("FRAME END");
-      STATE = WAIT;
+      STATE_ENC = WAIT;
       while(1);
       break;     
     }
@@ -670,20 +670,20 @@ void Remote_Builder(){
 void Ex_Data_Builder(int DLC_L){
   Serial.print("Extended Data Builder\n");
   if(SEND_BIT){
-  switch(STATE){
+  switch(STATE_ENC){
     case ARBITRATION_LOSS_STATE:
       if (BUS_IDLE){
-        STATE = SOF;
+        STATE_ENC = SOF;
       }
       else{
-        STATE = ARBITRATION_LOSS_STATE;
+        STATE_ENC = ARBITRATION_LOSS_STATE;
       }
       break; 
     case SOF:
       Ecount = 0;
       Serial.print("COUNT SOF:  ");
       Serial.println(Ecount);
-      STATE = ID_A;
+      STATE_ENC = ID_A;
       Frame[Ecount] = '0';
       Serial.print("SOF: ");
       Serial.println(Frame[Ecount]);
@@ -695,10 +695,10 @@ void Ex_Data_Builder(int DLC_L){
         }
         else {
           Frame[Ecount] = ID[Ecount-1];
-          STATE = SRR;
+          STATE_ENC = SRR;
         }
         else{
-          STATE = ARBITRATION_LOSS_STATE;
+          STATE_ENC = ARBITRATION_LOSS_STATE;
         }
         Serial.print("COUNT ID:  ");
         Serial.println(Ecount);
@@ -708,10 +708,10 @@ void Ex_Data_Builder(int DLC_L){
     case SRR:
       if(!ARBITRATION_LOSS){
         Frame[Ecount] = '1'; // 12 position
-        STATE = IDE;
+        STATE_ENC = IDE;
       }
       else{
-        STATE = ARBITRATION_LOSS_STATE;
+        STATE_ENC = ARBITRATION_LOSS_STATE;
       }
         Serial.print("COUNT RTR:  ");
         Serial.println(Ecount);
@@ -721,10 +721,10 @@ void Ex_Data_Builder(int DLC_L){
     case IDE:
       if(!ARBITRATION_LOSS){
         Frame[Ecount] = '1';  // 13 position
-        STATE = IDB;
+        STATE_ENC = IDB;
       }
       else{
-        STATE = ARBITRATION_LOSS_STATE;
+        STATE_ENC = ARBITRATION_LOSS_STATE;
       }
         Serial.print("COUNT IDE:  ");
         Serial.println(Ecount);
@@ -738,11 +738,11 @@ void Ex_Data_Builder(int DLC_L){
           }
           else {
             Frame[Ecount] = idb[Ecount-14];
-            STATE = RTR;
+            STATE_ENC = RTR;
           }
       }
       else{
-        STATE = ARBITRATION_LOSS_STATE;
+        STATE_ENC = ARBITRATION_LOSS_STATE;
       }
           Serial.print("COUNT ID:  ");
           Serial.println(Ecount);
@@ -753,10 +753,10 @@ void Ex_Data_Builder(int DLC_L){
     case RTR:
     if(!ARBITRATION_LOSS){
       Frame[Ecount] = '0';   // 32 position
-      STATE = R1;
+      STATE_ENC = R1;
     }
     else{
-      STATE = ARBITRATION_LOSS_STATE;
+      STATE_ENC = ARBITRATION_LOSS_STATE;
     }
       Serial.print("COUNT RZERO:  ");
       Serial.println(Ecount);
@@ -765,7 +765,7 @@ void Ex_Data_Builder(int DLC_L){
       break;
     case R1:
       Frame[Ecount] = '0';   // 33 position
-      STATE = R2;
+      STATE_ENC = R2;
       Serial.print("COUNT RZERO:  ");
       Serial.println(Ecount);
       Serial.print("R0: ");
@@ -773,7 +773,7 @@ void Ex_Data_Builder(int DLC_L){
       break;
     case R2:
       Frame[Ecount] = '0';   // 34 position
-      STATE = DLC;
+      STATE_ENC = DLC;
       Serial.print("COUNT RZERO:  ");
       Serial.println(Ecount);
       Serial.print("R0: ");
@@ -787,7 +787,7 @@ void Ex_Data_Builder(int DLC_L){
       }
       else {
         Frame[Ecount] = dlc[Ecount-35];
-        STATE = DATA;
+        STATE_ENC = DATA;
       }
       Serial.print("DLC: ");
       Serial.println(Frame[Ecount]);
@@ -801,7 +801,7 @@ void Ex_Data_Builder(int DLC_L){
         else {
           Frame[Ecount] = data[Ecount-39];
           crc = MakeCRC(Frame); // N esta funcionando no momento
-          STATE = crce;
+          STATE_ENC = crce;
         }
         Serial.print("DATA: ");
         Serial.println(Frame[Ecount]);
@@ -814,14 +814,14 @@ void Ex_Data_Builder(int DLC_L){
       }
       else {
         Frame[Ecount] = crc[Ecount - 39 - (DLC_L*8)];
-        STATE = CRC_DELIMITER;
+        STATE_ENC = CRC_DELIMITER;
         BS_FLAG = false;
       }
       Serial.print("CRC: ");
       Serial.println(Frame[Ecount]);
       break;
     case CRC_DELIMITER:       //54 (+DLC_L) Position
-      STATE = ACK_SLOT;
+      STATE_ENC = ACK_SLOT;
       BS_FLAG = false;
       Frame[Ecount] = '1';
       Serial.print("CRC_DELIMITER: ");
@@ -832,16 +832,16 @@ void Ex_Data_Builder(int DLC_L){
       BS_FLAG = false;
       Frame[Ecount] = '1';  // First Encoder writes RECESSIVE bit
       if(ACK_CONFIRM){
-        STATE = ACK_DELIMITER;
+        STATE_ENC = ACK_DELIMITER;
       }
       else{
-        STATE = SOF;
+        STATE_ENC = SOF;
       }
       Serial.print("ACK_SLOT: ");
       Serial.println(Frame[Ecount]);
       break;
     case ACK_DELIMITER:        //56 (+DLC_L) Position
-      STATE = EoF;
+      STATE_ENC = EoF;
       Frame[Ecount] = '1';
       BS_FLAG = false;      
       Serial.println("ACK_DELIMITER");
@@ -856,7 +856,7 @@ void Ex_Data_Builder(int DLC_L){
       }
       else {
         Frame[Ecount] = '1';
-        STATE = INTERFRAME_SPACING;
+        STATE_ENC = INTERFRAME_SPACING;
       }
       Serial.print("EOF: ");
       Serial.println(Frame[Ecount]);
@@ -870,14 +870,14 @@ void Ex_Data_Builder(int DLC_L){
       }
       else {
         Frame[Ecount] = '1';
-        STATE = WAIT;
+        STATE_ENC = WAIT;
       }
       Serial.print("INTERFRAME SPACING: ");
       Serial.println(Frame[Ecount]);
       break;
     case WAIT:
       Serial.println("FRAME END");
-      STATE = WAIT;
+      STATE_ENC = WAIT;
       while(1);
       break;     
       }
@@ -891,20 +891,20 @@ void Ex_Data_Builder(int DLC_L){
 void Ex_Remote_Builder(){
   Serial.print("Extended Remote Builder\n");
   if(SEND_BIT){
-  switch(STATE){
+  switch(STATE_ENC){
     case ARBITRATION_LOSS_STATE:
       if (BUS_IDLE){
-        STATE = SOF;
+        STATE_ENC = SOF;
       }
       else{
-        STATE = ARBITRATION_LOSS_STATE;
+        STATE_ENC = ARBITRATION_LOSS_STATE;
       }
       break; 
     case SOF:
       Ecount = 0;
       Serial.print("COUNT SOF:  ");
       Serial.println(Ecount);
-      STATE = ID_A;
+      STATE_ENC = ID_A;
       Frame[Ecount] = '0';
       Serial.print("SOF: ");
       Serial.println(Frame[Ecount]);
@@ -916,11 +916,11 @@ void Ex_Remote_Builder(){
         }
         else {
           Frame[Ecount] = ID[Ecount-1];
-          STATE = SRR;
+          STATE_ENC = SRR;
         }
       }
       else{
-        STATE = ARBITRATION_LOSS_STATE;
+        STATE_ENC = ARBITRATION_LOSS_STATE;
       }
         Serial.print("COUNT ID:  ");
         Serial.println(Ecount);
@@ -930,10 +930,10 @@ void Ex_Remote_Builder(){
     case SRR:
       if(!ARBITRATION_LOSS){
         Frame[Ecount] = '1'; // 12 position
-        STATE = IDE;
+        STATE_ENC = IDE;
       }
       else{
-        STATE = ARBITRATION_LOSS_STATE;
+        STATE_ENC = ARBITRATION_LOSS_STATE;
       }
         Serial.print("COUNT RTR:  ");
         Serial.println(Ecount);
@@ -943,10 +943,10 @@ void Ex_Remote_Builder(){
     case IDE:
       if(!ARBITRATION_LOSS){
         Frame[Ecount] = '1';  // 13 position
-        STATE = IDB;
+        STATE_ENC = IDB;
       }
       else{
-        STATE = ARBITRATION_LOSS_STATE;
+        STATE_ENC = ARBITRATION_LOSS_STATE;
       }
         Serial.print("COUNT IDE:  ");
         Serial.println(Ecount);
@@ -960,11 +960,11 @@ void Ex_Remote_Builder(){
           }
           else {
             Frame[Ecount] = idb[Ecount-14];
-            STATE = RTR;
+            STATE_ENC = RTR;
           }
       }
       else{
-        STATE = ARBITRATION_LOSS_STATE;
+        STATE_ENC = ARBITRATION_LOSS_STATE;
       }
           Serial.print("COUNT ID:  ");
           Serial.println(Ecount);
@@ -974,10 +974,10 @@ void Ex_Remote_Builder(){
     case RTR:
       if(!ARBITRATION_LOSS){
         Frame[Ecount] = '1';   // 32 position
-        STATE = R1;
+        STATE_ENC = R1;
       }
       else{
-        STATE = ARBITRATION_LOSS_STATE;
+        STATE_ENC = ARBITRATION_LOSS_STATE;
       }
         Serial.print("COUNT RZERO:  ");
         Serial.println(Ecount);
@@ -986,7 +986,7 @@ void Ex_Remote_Builder(){
         break;
     case R1:
       Frame[Ecount] = '0';   // 33 position
-      STATE = R2;
+      STATE_ENC = R2;
       Serial.print("COUNT RZERO:  ");
       Serial.println(Ecount);
       Serial.print("R0: ");
@@ -994,7 +994,7 @@ void Ex_Remote_Builder(){
       break;
     case R2:
       Frame[Ecount] = '0';   // 34 position
-      STATE = DLC;
+      STATE_ENC = DLC;
       Serial.print("COUNT RZERO:  ");
       Serial.println(Ecount);
       Serial.print("R0: ");
@@ -1009,7 +1009,7 @@ void Ex_Remote_Builder(){
       else {
         Frame[Ecount] = dlc[Ecount-35];
         crc = MakeCRC(Frame);
-        STATE = crce;
+        STATE_ENC = crce;
       }
 
       Serial.print("DLC: ");
@@ -1023,14 +1023,14 @@ void Ex_Remote_Builder(){
       }
       else {
         Frame[Ecount] = crc[Ecount - 39];
-        STATE = CRC_DELIMITER;
+        STATE_ENC = CRC_DELIMITER;
       }
       Serial.print("CRC: ");
       Serial.println(Frame[Ecount]);
       break;
     case CRC_DELIMITER:       //54 Position
       BS_FLAG = false;
-      STATE = ACK_SLOT;
+      STATE_ENC = ACK_SLOT;
       Frame[Ecount] = '1';
       Serial.print("CRC_DELIMITER: ");
       Serial.println(Frame[Ecount]);
@@ -1040,17 +1040,17 @@ void Ex_Remote_Builder(){
       BS_FLAG = false;
       Frame[Ecount] = '1';  // First Encoder writes RECESSIVE bit
       if(ACK_CONFIRM){
-        STATE = ACK_DELIMITER;
+        STATE_ENC = ACK_DELIMITER;
       }
       else{
-        STATE = SOF;
+        STATE_ENC = SOF;
       }
       Serial.print("ACK_SLOT: ");
       Serial.println(Frame[Ecount]);
       break;
     case ACK_DELIMITER:        //56 Position
       BS_FLAG = false;
-      STATE = EoF;
+      STATE_ENC = EoF;
       Frame[Ecount] = '1';
       Serial.println("ACK_DELIMITER");
       Serial.println(Frame[Ecount]);
@@ -1064,7 +1064,7 @@ void Ex_Remote_Builder(){
       }
       else {
         Frame[Ecount] = '1';
-        STATE = INTERFRAME_SPACING;
+        STATE_ENC = INTERFRAME_SPACING;
       }
       Serial.print("EOF: ");
       Serial.println(Frame[Ecount]);
@@ -1078,14 +1078,14 @@ void Ex_Remote_Builder(){
       }
       else {
         Frame[Ecount] = '1';
-        STATE = WAIT;
+        STATE_ENC = WAIT;
       }
       Serial.print("INTERFRAME SPACING: ");
       Serial.println(Frame[Ecount]);
       break;
     case WAIT:
       Serial.println("FRAME END");
-      STATE = WAIT;
+      STATE_ENC = WAIT;
       while(1);
       break;     
       }
@@ -1101,7 +1101,7 @@ void Ex_Remote_Builder(){
 void Error_Builder(){
   Serial.print("Error Builder\n");
   if(SEND_BIT){
-  switch(STATE){
+  switch(STATE_ENC){
     case ERROR_FLAG_STATE:
       if(Ecount < 5){
           Frame[Ecount] = '0';
@@ -1110,7 +1110,7 @@ void Error_Builder(){
         }
         else {
           Frame[Ecount] = '0';
-          STATE = ERROR_DELIMITER;
+          STATE_ENC = ERROR_DELIMITER;
         }
         BS_FLAG = false;
         Serial.print("ERROR_FLAG_STATE: ");
@@ -1125,14 +1125,14 @@ void Error_Builder(){
           }
           else {
             Frame[Ecount] = '1';
-            STATE = WAIT;
+            STATE_ENC = WAIT;
           }
           Serial.print("ERROR_DELIMITER: ");
           Serial.println(Frame[Ecount]);
           break;
     case WAIT:
       Serial.println("FRAME END");
-      STATE = WAIT;
+      STATE_ENC = WAIT;
       while(1);
       break;     
       } 
@@ -1146,7 +1146,7 @@ void Error_Builder(){
 void Overload_Builder(){
   Serial.print("Overload Builder\n");
   if(SEND_BIT){
-  switch(STATE){
+  switch(STATE_ENC){
     case OVERLOAD_FLAG_STATE:
       if(Ecount < 5){
           Frame[Ecount] = '0';
@@ -1155,7 +1155,7 @@ void Overload_Builder(){
         }
         else {
           Frame[Ecount] = '0';
-          STATE = OVERLOAD_DELIMITER;
+          STATE_ENC = OVERLOAD_DELIMITER;
           Serial.print("COUNT OVERLOAD FLAG:  ");
           Serial.println(Ecount);
         }
@@ -1171,7 +1171,7 @@ void Overload_Builder(){
           }
           else {
             Frame[Ecount] = '1';
-            STATE = WAIT;
+            STATE_ENC = WAIT;
             Serial.print("COUNT OVERLOAD DELIMITER:  ");
             Serial.println(Ecount);
           }
