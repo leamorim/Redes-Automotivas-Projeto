@@ -45,6 +45,7 @@ unsigned int count_decoder = 0;
 char last_bit_enc, last_bit_dec;
 
 char BIT_TO_SAVE;
+char BIT_TO_WRITE;
 bool CAPTURE,BSE_FLAG, BSD_FLAG = true; 
 
  /*Estados*/
@@ -707,18 +708,20 @@ void UC_DECODER()
       case ACK_SLOT:
         if(count == L_BIT)
         {
-            if(BIT_TO_SAVE == '0')
-            {
-              Serial.println("ACK_SLOT");
-              count  = 0;
-              STATE = ACK_DELIMITER;
-            }
-            else
-            {
-              Serial.println("ACK ERROR");
-              count  = 0;
-              STATE = ACK_ERROR;             
-            }
+          BIT_TO_WRITE = '0';  
+          ACK_FLAG = true;
+          /*if(BIT_TO_SAVE == '0')
+          {
+            Serial.println("ACK_SLOT");
+            count  = 0;
+            STATE = ACK_DELIMITER;
+          }
+          else
+          {
+            Serial.println("ACK ERROR");
+            count  = 0;
+            STATE = ACK_ERROR;             
+          }*/
         } 
       break;
 
