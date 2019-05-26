@@ -53,7 +53,7 @@ OVERLOAD_DELIMITER, OVERLOAD_FLAG_STATE, ARBITRATION_LOSS_STATE} STATE_DEC, STAT
 
 /****** TESTES ******/
   //Encoder testes
-  char *ID = "10001001001";
+  char *ID = "10011001001";
   char *idb = "110000000001111010";
   char dlc[4] = {'1','0','0','0'};
   char *data = "0000001010101010101010101010101010101010101010101010101010101010";
@@ -61,6 +61,7 @@ OVERLOAD_DELIMITER, OVERLOAD_FLAG_STATE, ARBITRATION_LOSS_STATE} STATE_DEC, STAT
   int DLC_L = 8;
   int FF = FRAME_FORMAT; //FRAME FORMAT
   int FT = FRAME_TYPE; //FRAME TYPE
+  bool FRAME_START = false;
 /****** TESTES ******/
 
 
@@ -250,7 +251,7 @@ void UC_BT(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
             if(aux_read == false){
               CAN_RX = '0';
             }
-            if(aux == true){
+            if(aux_read == true){
               CAN_RX = '1';
             }
             count_bt = 0;
@@ -1310,6 +1311,29 @@ void Overload_Builder(){
 
 void Frame_Builder(int FF,int FT,int DLC_L){
   BS_FLAG = true;
+  if(!FRAME_START){
+    if(FT == DATA_FRAME || FT == REMOTE_FRAME){
+      STATE_ENC = SOF; //In DATA/REMOTE FRAME CASES
+    }
+    else if(FT == ERROR_FRAME){
+      STATE_ENC = ERROR_FLAG_STATE; //In ERROR FRAME CASES
+    }
+    else if (FT == OVERLOAD_FRAME){
+      STATE_ENC = OVERLOAD_FLAG_STATE; //In ERROR FRAME CASES
+    }
+    if(FF == BASE){
+        Frame = (char*) calloc(47 + DLC_L*8,sizeof(char));  //BASE FRAME CREATION
+        FRAME_START = true;
+      }
+      else if(FF == EXTENDED){
+        Frame = (char*) calloc(67 + DLC_L*8,sizeof(char));  //EXTENDED FRAME CREATION
+        FRAME_START = true;
+      }
+      else if(FT == ERROR_FRAME || OVERLOAD_FRAME){
+        Frame = (char*) calloc(14,sizeof(char)); 
+        FRAME_START = true;
+      }
+  }
   // Base Frame Builders
   if(DLC_L > 8){
     DLC_L = 8;
@@ -2205,7 +2229,7 @@ void setup() {
 
 
 void loop(){
-  if(Writing_Point){
+  /*if(Writing_Point){
     if(ACK_FLAG){//Flag do Decoder para indicar o envio de um bit recessivo de ACK_SLOT
       CAN_TX = '0';
       digitalWrite(CAN_TX_PIN,LOW);
@@ -2223,6 +2247,7 @@ void loop(){
     //digitalWrite(CAN_TX);
     }
   }
+  */
 
   if(Sample_Point){
     if(ACK_SLOT_FLAG){
