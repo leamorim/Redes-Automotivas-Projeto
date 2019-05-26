@@ -4,41 +4,15 @@
 //QUASE LA
 // DATA AND REMOTE STATES
 
-#define SOF   0
-#define ID_A  1
-#define RTR   2
-#define IDE   3
-#define R0    4
-#define DLC   5
-#define DATA  6
-#define crce  7
-#define CRC_DELIMITER       8
-#define ACK_SLOT            9
-#define ACK_DELIMITER       10
-#define EoF                 11
-#define INTERFRAME_SPACING  12
 
-#define SRR 14
-#define R1  15
-#define R2  16
-#define IDB 17
-
-#define WAIT 13
-
-
-
-//ERROR FRAME STATES
-#define ERROR_FLAG_STATE 1
-#define ERROR_DELIMITER 2
-
-//OVERLOAD FRAME STATES
-#define OVERLOAD_FLAG_STATE 1
-#define OVERLOAD_DELIMITER 2
-
+enum enc_estados{SOF = 0, ID_A = 1, RTR = 2, IDE = 3, R0 = 4, DLC = 5, DATA = 6, 
+crce = 7, CRC_DELIMITER = 8, ACK_SLOT = 9, ACK_DELIMITER = 10, EoF = 11,
+INTERFRAME_SPACING = 12, WAIT = 13, SRR = 14,R1 = 15, R2 = 16, IDB = 17,
+ERROR_FLAG_STATE = 18, ERROR_DELIMITER = 19, OVERLOAD_DELIMITER = 20, 
+OVERLOAD_FLAG_STATE = 21}STATE_ENC;
 
 //CONTROL SIGNALS
-
-#define TQ 1000000
+//Sinais de controle para construção de um frame
 #define DATA_FRAME 1
 #define REMOTE_FRAME 2
 #define ERROR_FRAME 3
@@ -56,7 +30,8 @@ int DLC_L = 8;
 
 //VECTORS FOR TESTING WITH FICTIONAL VALUES FOR MORE ACCURATE DEBUGGING
 
-volatile byte STATE;
+/****** CASOS DE TESTE ******/
+
 int FF = FRAME_FORMAT; //FRAME FORMAT
 int FT = FRAME_TYPE; //FRAME TYPE
 int Ecount = 0;
