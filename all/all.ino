@@ -1,6 +1,9 @@
 //Bibliotecas e Defines BEGIN
 #include <TimerOne.h>
 
+#define CAN_RX_PIN 8
+#define CAN_TX_PIN 9
+
     //Bit_Timing Defines
 #define TQ 1000000  //Tempo em Microssegundos
 #define L_SYNC 1
@@ -243,7 +246,13 @@ void UC_BT(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
           if(count_bt == (L_SEG1 +Ph_Error)){
             STATE_BT = SEG2;
             Sample_Point = true;
-            //CAN_RX = digitalRead();//Capturar do barramento
+            bool aux_read = digitalRead(CAN_RX_PIN);//Capturar do barramento
+            if(aux_read == false){
+              CAN_RX = '0';
+            }
+            if(aux == true){
+              CAN_RX = '1';
+            }
             count_bt = 0;
             Ph_Error = 0;
           }
@@ -2199,12 +2208,18 @@ void loop(){
   if(Writing_Point){
     if(ACK_FLAG){//Flag do Decoder para indicar o envio de um bit recessivo de ACK_SLOT
       CAN_TX = '0';
-      //digitalWrite(CAN_TX);
+      digitalWrite(CAN_TX_PIN,LOW);
     }
     else{
     Frame_Builder(FF,FT,DLC_L);
     //Frame_Printer(Frame,FF,FT,DLC_L);
     bit_stuffing_encoder();
+    if(CAN_TX == '0'){
+      digitalWrite(CAN_TX_PIN,LOW);
+    }
+    else if(CAN_TX == '1'){
+      digitalWrite(CAN_TX_PIN,HIGH);
+    }
     //digitalWrite(CAN_TX);
     }
   }
