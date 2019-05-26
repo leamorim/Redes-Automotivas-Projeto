@@ -1,7 +1,5 @@
 //Bibliotecas e Defines BEGIN
 #include <TimerOne.h>
-#include <string.h>
-#include <stdio.h>
 
     //Bit_Timing Defines
 #define TQ 1000000  //Tempo em Microssegundos
@@ -15,10 +13,11 @@
 #define L_SEG2 L_PH_SEG2
 
 enum dec_estados {BUS_IDLE = 0,SoF = 1,ID_A = 2,RTR_SRR = 3,IDE_0 = 4,R0 = 5, DLC = 6,
-DATA = 7, CRC_READ = 8,CRC_DELIMITER = 9, ACK_SLOT = 10, ACK_DELIMITER = 11, EoF = 12,
-INTERFRAME_SPACING = 13,IDE_1 = 14, ID_B = 15,RTR = 16, R1R0 = 17, STATE_ERROR = 25,
-FORMART_ERROR = 26, ACK_ERROR = 27, CRC_ERROR = 28, BIT_STUFFING_ERROR = 29, STATE_BSD_FLAG1 = 30,
-BIT_ERROR = 31, STATE_BED_FLAG1 = 32, OVERLOAD = 33, WAIT = 34} STATE_DEC;
+DATA = 7, CRC_READ = 8,CRC_DELIMITER = 9, ACK_SLOT = 10, ACK_DELIMITER, EoF,
+INTERFRAME_SPACING,IDE_1, ID_B,RTR, R1R0, STATE_ERROR,
+FORMART_ERROR, ACK_ERROR, CRC_ERROR, BIT_STUFFING_ERROR, STATE_BSD_FLAG1,
+BIT_ERROR , STATE_BED_FLAG1, OVERLOAD, WAIT , SOF, IDE, crce, SRR,R1,R2,IDB,ERROR_FLAG_STATE, ERROR_DELIMITER, OVERLOAD_DELIMITER, OVERLOAD_FLAG_STATE} STATE_DEC, STATE_ENC;
+
     //Decoder Defines
     /*Tamanho dos Estados*/
   #define L_BIT 1
@@ -31,6 +30,18 @@ BIT_ERROR = 31, STATE_BED_FLAG1 = 32, OVERLOAD = 33, WAIT = 34} STATE_DEC;
   #define L_EOF 7
   #define L_INTERFRAME_SPACING 3
 
+
+    //Encoder Defines
+//Sinais de controle para construção de um frame
+#define DATA_FRAME 1
+#define REMOTE_FRAME 2
+#define ERROR_FRAME 3
+#define OVERLOAD_FRAME 4
+#define FRAME_TYPE REMOTE_FRAME
+
+#define BASE 0
+#define EXTENDED 1
+#define FRAME_FORMAT EXTENDED
 
 //Bibliotecas e Defines END
 
@@ -47,6 +58,7 @@ volatile bool Writing_Point = false;
 volatile bool Soft_Sync = false;
 volatile bool Hard_Sync = false;
 volatile bool SS_Flag = false;
+volatile char last_bit_bt = '\0';
 
 
     //Decoder Variáveis
@@ -83,7 +95,7 @@ long int Value_CRC;
 char DataHex[4];
 int i;
 
-
+    // Bit Stuffing Decoder
 enum bs_estados {INACTIVE = 0,COUNTING,BIT_STUFFED} STATE_BS_ENC,STATE_BS_DEC;
 unsigned int count_bs_encoder = 0;
 unsigned int count_bs_decoder = 0;
@@ -92,6 +104,21 @@ char last_bit_enc, last_bit_dec;
 char BIT_TO_SAVE;
 bool CAPTURE,BSE_FLAG, BSD_FLAG = true; 
    
+
+    //Encoder Variáveis
+int DLC_L = 8;
+int FF = FRAME_FORMAT; //FRAME FORMAT
+int FT = FRAME_TYPE; //FRAME TYPE
+int Ecount = 0;
+
+char CAN_TX = '\0';
+char CAN_RX = '\0';
+char *crc;
+char *Frame = NULL;
+  //Global do Encoder
+String printvec = ""; //printa o frame montado após o módulo de Bit Stuffing
+
+
 
 //Variáveis Globais END
 
@@ -139,6 +166,18 @@ char *MakeCRC(char *BitString)
 
 
 //Bit_Timing_Module BEGIN
+
+  //Edge Detector - Bit Timing
+  void Edge_Detector(){
+    if(BUS_IDLE && CAN_RX == '0'){//Hard_Sync
+      HS_ISR();
+    }
+    else if (last_bit_bt == '1' && CAN_RX == '0'){//Soft_Sync
+      SS_ISR();
+    }
+    last_bit_bt = CAN_RX;
+  }
+
 void SS_ISR() {
   if(STATE_BT == SEG1){
     Soft_Sync = true;
@@ -207,6 +246,8 @@ void HS_ISR() {
   Timer1.attachInterrupt(UC_BT,TQ);//reinicia timerone
   count_bt = 0;
   STATE_BT = SYNC;//talvez antes da reinicialização do timerone, verificar
+  Writing_Point = true;
+  //Serial.println("Hard_Sync");
 }
 
 
@@ -235,6 +276,7 @@ void bit_stuffing_decoder(char Bit_Read){
     CAPTURE (Sinal que manda o decoder capturar ou não o sinal)
  */   
 //Assigns são feitos para estas saídas em TODOS os estados
+if(Sample_Point){
 
     switch (STATE_BS_DEC){
     case INACTIVE:
@@ -292,6 +334,7 @@ void bit_stuffing_decoder(char Bit_Read){
               last_bit_dec = Bit_Read;    
         break;
     }
+  }
 }
 
 
