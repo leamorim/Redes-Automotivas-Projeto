@@ -6,7 +6,6 @@
 #define CAN_TX_PIN 10
 SoftwareSerial mySerial(CAN_RX_PIN,CAN_TX_PIN);
 
-
     //Bit_Timing Defines
 #define TQ 100000  //Tempo em Microssegundos
 #define L_SYNC 1
@@ -407,33 +406,28 @@ void bit_stuffing_encoder(){
 void Frame_Printer(char*v,int ff,int ft,int dlc_l){
   if(ff == BASE){
    if(ft == DATA_FRAME){
-      Serial.println("BASE DATA FRAME:");
       for(int i = 0;i <(47 + (dlc_l*8));i++){
         Serial.print(v[i]);
       }
     }
     else if(ft == REMOTE_FRAME){
-      Serial.println("BASE REMOTE FRAME:");
       for(int i = 0;i <47;i++){
         Serial.print(v[i]);
       }
     }
     else if(ft == ERROR_FRAME || ft == OVERLOAD_FRAME ){
-      Serial.println("BASE ERROR/OVERLOAD FRAME:");
       for(int i = 0;i <14;i++){
         Serial.print(v[i]);
       }
     }
   }
   else if(ff == EXTENDED){
-    if(ft == DATA_FRAME){
-      Serial.println("EXTENDED DATA FRAME:");
+    if(ft == DATA_FRAME)
       for(int i = 0;i <(67 + (dlc_l*8));i++){
         Serial.print(v[i]);
       }
     }
     else if(ft == REMOTE_FRAME){
-        Serial.println("EXTENDED REMOTE FRAME:");
       for(int i = 0;i <67;i++){
         Serial.print(v[i]);
       }
@@ -445,7 +439,6 @@ void Frame_Printer(char*v,int ff,int ft,int dlc_l){
 // BASE FRAME BUILDERS
 
 void Data_Builder(int DLC_L){
-  Serial.print("Data Builder\n");
   if(SEND_BIT){
   switch(STATE_ENC){
     case ARBITRATION_LOSS_STATE:
@@ -458,8 +451,6 @@ void Data_Builder(int DLC_L){
       break; 
     case SOF:
       Ecount = 0;
-      Serial.print("COUNT SOF:  ");
-      Serial.println(Ecount);
       STATE_ENC = ID_A;
       BS_FLAG = true;
       Frame[Ecount] = '0';
@@ -479,8 +470,6 @@ void Data_Builder(int DLC_L){
       else{
         STATE_ENC = ARBITRATION_LOSS_STATE;
       }
-        Serial.print("COUNT ID:  ");
-        Serial.println(Ecount);
         Serial.print("IDA: ");
         Serial.println(Frame[Ecount]);
         break;
@@ -492,32 +481,24 @@ void Data_Builder(int DLC_L){
       else{
         STATE_ENC = ARBITRATION_LOSS_STATE;
       }
-        Serial.print("COUNT RTR:  ");
-        Serial.println(Ecount);
         Serial.print("RTR: ");
         Serial.println(Frame[Ecount]);
         break;
     case IDE:
       Frame[Ecount] = '0';  // 13 position
       STATE_ENC = R0;
-      Serial.print("COUNT IDE:  ");
-      Serial.println(Ecount);
       Serial.print("IDE: ");
       Serial.println(Frame[Ecount]);
       break;
     case R0:
       Frame[Ecount] = '0';   // 14 position
       STATE_ENC = DLC;
-      Serial.print("COUNT RZERO:  ");
-      Serial.println(Ecount);
       Serial.print("R0: ");
       Serial.println(Frame[Ecount]);
       break;
     case DLC:
       if(Ecount < 18){
         Frame[Ecount] = dlc[Ecount-15];   // 15 - 18
-        Serial.print("COUNT DLC:  ");
-        Serial.println(Ecount);
       }
       else {
         Frame[Ecount] = dlc[Ecount-15];
@@ -531,8 +512,6 @@ void Data_Builder(int DLC_L){
       BS_FLAG = true;
       if((Ecount < 18 + DLC_L*8) && (DLC_L != 0)){
         Frame[Ecount] = data[Ecount-19];
-        Serial.print("COUNT DATA:  ");
-        Serial.println(Ecount);
       }
       else {
         Frame[Ecount] = data[Ecount-19];
@@ -547,8 +526,6 @@ void Data_Builder(int DLC_L){
     case crce:
       if((Ecount < 33 + DLC_L*8)){
         Frame[Ecount] = crc[Ecount - 19 -(DLC_L*8)];
-        Serial.print("COUNT CRC:  ");
-        Serial.println(Ecount);
       }
       else {
         Frame[Ecount] = crc[Ecount - 19 -(DLC_L*8)];
@@ -590,8 +567,6 @@ void Data_Builder(int DLC_L){
       BS_FLAG = false;
       if(Ecount < (43 + DLC_L*8)){
         Frame[Ecount] = '1';
-        Serial.print("COUNT EOF:  ");
-        Serial.println(Ecount);
       }
       else {
         Frame[Ecount] = '1';
@@ -604,8 +579,6 @@ void Data_Builder(int DLC_L){
       BS_FLAG = false;
       if(Ecount < (46 + (DLC_L*8))){
         Frame[Ecount] = '1';
-        Serial.print("COUNT INTERFRAME SPACING:  ");
-        Serial.println(Ecount);
       }
       else {
         Frame[Ecount] = '1';
@@ -617,7 +590,7 @@ void Data_Builder(int DLC_L){
     case WAIT:
       Serial.println("FRAME END");
       STATE_ENC = WAIT;
-      while(1);
+      while(1);//Bloqueia no fim do frame
       break;
     }
       if(!ARBITRATION_LOSS){     
@@ -629,7 +602,6 @@ void Data_Builder(int DLC_L){
 }
 
 void Remote_Builder(){
-  Serial.print("Remote Builder\n");
   if(SEND_BIT){
   switch(STATE_ENC){
     case ARBITRATION_LOSS_STATE:
@@ -642,8 +614,6 @@ void Remote_Builder(){
       break; 
     case SOF:
       Ecount = 0;
-      Serial.print("COUNT SOF:  ");
-      Serial.println(Ecount);
       STATE_ENC = ID_A;
       Frame[Ecount] = '0';
       Serial.print("SOF: ");
@@ -662,8 +632,6 @@ void Remote_Builder(){
       else{
         STATE_ENC = ARBITRATION_LOSS_STATE;
       }
-        Serial.print("COUNT ID:  ");
-        Serial.println(Ecount);
         Serial.print("IDA: ");
         Serial.println(Frame[Ecount]);
         break;
@@ -675,32 +643,24 @@ void Remote_Builder(){
       else{
         STATE_ENC = ARBITRATION_LOSS_STATE;
       }
-        Serial.print("COUNT RTR:  ");
-        Serial.println(Ecount);
         Serial.print("RTR: ");
         Serial.println(Frame[Ecount]);
         break;
     case IDE:
       Frame[Ecount] = '0';  // 13 position
       STATE_ENC = R0;
-      Serial.print("COUNT IDE:  ");
-      Serial.println(Ecount);
       Serial.print("IDE: ");
       Serial.println(Frame[Ecount]);
       break;
     case R0:
       Frame[Ecount] = '0';   // 14 position
       STATE_ENC = DLC;
-      Serial.print("COUNT RZERO:  ");
-      Serial.println(Ecount);
       Serial.print("R0: ");
       Serial.println(Frame[Ecount]);
       break;
     case DLC:
       if(Ecount < 18){
         Frame[Ecount] = dlc[Ecount-15];   // 15 - 18
-        Serial.print("COUNT DLC:  ");
-        Serial.println(Ecount);
       }
       else {
         Frame[Ecount] = dlc[Ecount-15];
@@ -714,8 +674,6 @@ void Remote_Builder(){
     case crce:
       if(Ecount < 33){
         Frame[Ecount] = crc[Ecount - 19];
-        Serial.print("COUNT CRC:  ");
-        Serial.println(Ecount);
       }
       else {
         Frame[Ecount] = crc[Ecount - 19];
@@ -755,8 +713,6 @@ void Remote_Builder(){
       BS_FLAG = false;
       if(Ecount < 43){
         Frame[Ecount] = '1';
-        Serial.print("COUNT EOF:  ");
-        Serial.println(Ecount);
       }
       else {
         Frame[Ecount] = '1';
@@ -769,8 +725,6 @@ void Remote_Builder(){
       BS_FLAG = false;
       if(Ecount < 46){
         Frame[Ecount] = '1';
-        Serial.print("COUNT INTERFRAME SPACING:  ");
-        Serial.println(Ecount);
       }
       else {
         Frame[Ecount] = '1';
@@ -795,7 +749,6 @@ void Remote_Builder(){
 //EXTENDED FRAME CONSTRUCTORS
 
 void Ex_Data_Builder(int DLC_L){
-  Serial.print("Extended Data Builder\n");
   if(SEND_BIT){
   switch(STATE_ENC){
     case ARBITRATION_LOSS_STATE:
@@ -808,8 +761,6 @@ void Ex_Data_Builder(int DLC_L){
       break; 
     case SOF:
       Ecount = 0;
-      Serial.print("COUNT SOF:  ");
-      Serial.println(Ecount);
       STATE_ENC = ID_A;
       Frame[Ecount] = '0';
       Serial.print("SOF: ");
@@ -828,8 +779,6 @@ void Ex_Data_Builder(int DLC_L){
         else{
           STATE_ENC = ARBITRATION_LOSS_STATE;
         }
-        Serial.print("COUNT ID:  ");
-        Serial.println(Ecount);
         Serial.print("IDA: ");
         Serial.println(Frame[Ecount]);
         break;
@@ -841,8 +790,6 @@ void Ex_Data_Builder(int DLC_L){
       else{
         STATE_ENC = ARBITRATION_LOSS_STATE;
       }
-        Serial.print("COUNT RTR:  ");
-        Serial.println(Ecount);
         Serial.print("RTR: ");
         Serial.println(Frame[Ecount]);
         break;
@@ -854,8 +801,6 @@ void Ex_Data_Builder(int DLC_L){
       else{
         STATE_ENC = ARBITRATION_LOSS_STATE;
       }
-        Serial.print("COUNT IDE:  ");
-        Serial.println(Ecount);
         Serial.print("IDE: ");
         Serial.println(Frame[Ecount]);
         break;
@@ -872,8 +817,6 @@ void Ex_Data_Builder(int DLC_L){
       else{
         STATE_ENC = ARBITRATION_LOSS_STATE;
       }
-          Serial.print("COUNT ID:  ");
-          Serial.println(Ecount);
           Serial.print("IDA: ");
           Serial.println(Frame[Ecount]);
           break;
@@ -886,32 +829,24 @@ void Ex_Data_Builder(int DLC_L){
     else{
       STATE_ENC = ARBITRATION_LOSS_STATE;
     }
-      Serial.print("COUNT RZERO:  ");
-      Serial.println(Ecount);
       Serial.print("R0: ");
       Serial.println(Frame[Ecount]);
       break;
     case R1:
       Frame[Ecount] = '0';   // 33 position
       STATE_ENC = R2;
-      Serial.print("COUNT RZERO:  ");
-      Serial.println(Ecount);
       Serial.print("R0: ");
       Serial.println(Frame[Ecount]);
       break;
     case R2:
       Frame[Ecount] = '0';   // 34 position
       STATE_ENC = DLC;
-      Serial.print("COUNT RZERO:  ");
-      Serial.println(Ecount);
       Serial.print("R0: ");
       Serial.println(Frame[Ecount]);
       break;
     case DLC:
       if(Ecount < 38){
         Frame[Ecount] = dlc[Ecount-35];   // 35 - 38
-        Serial.print("COUNT DLC:  ");
-        Serial.println(Ecount);
       }
       else {
         Frame[Ecount] = dlc[Ecount-35];
@@ -923,8 +858,6 @@ void Ex_Data_Builder(int DLC_L){
     case DATA:
       if((Ecount < 38 + (DLC_L*8)) && (DLC_L != 0)){
           Frame[Ecount] = data[Ecount-39];   // 35 (+DLC_L) - 38 (+DLC_L)
-          Serial.print("COUNT DATA:  ");
-          Serial.println(Ecount);
         }
         else {
           Frame[Ecount] = data[Ecount-39];
@@ -937,8 +870,6 @@ void Ex_Data_Builder(int DLC_L){
     case crce:
       if(Ecount < 53 + (DLC_L*8)){      // 39(+DLC_L) - 53(+DLC_L) Position
         Frame[Ecount] = crc[Ecount - 39 - (DLC_L*8)];
-        Serial.print("COUNT CRC:  ");
-        Serial.println(Ecount);
       }
       else {
         Frame[Ecount] = crc[Ecount - 39 - (DLC_L*8)];
@@ -979,8 +910,6 @@ void Ex_Data_Builder(int DLC_L){
       BS_FLAG = false;
       if(Ecount < 63 + (DLC_L*8)){        // 57 (+DLC_L) - 63 (+DLC_L)
         Frame[Ecount] = '1';
-        Serial.print("COUNT EOF:  ");
-        Serial.println(Ecount);
       }
       else {
         Frame[Ecount] = '1';
@@ -993,8 +922,6 @@ void Ex_Data_Builder(int DLC_L){
       BS_FLAG = false;
       if(Ecount < 66 + (DLC_L*8)){
         Frame[Ecount] = '1';
-        Serial.print("COUNT INTERFRAME SPACING:  ");
-        Serial.println(Ecount);
       }
       else {
         Frame[Ecount] = '1';
@@ -1017,7 +944,6 @@ void Ex_Data_Builder(int DLC_L){
 }
 
 void Ex_Remote_Builder(){
-  Serial.print("Extended Remote Builder\n");
   if(SEND_BIT){
   switch(STATE_ENC){
     case ARBITRATION_LOSS_STATE:
@@ -1030,8 +956,6 @@ void Ex_Remote_Builder(){
       break; 
     case SOF:
       Ecount = 0;
-      Serial.print("COUNT SOF:  ");
-      Serial.println(Ecount);
       STATE_ENC = ID_A;
       Frame[Ecount] = '0';
       Serial.print("SOF: ");
@@ -1050,8 +974,6 @@ void Ex_Remote_Builder(){
       else{
         STATE_ENC = ARBITRATION_LOSS_STATE;
       }
-        Serial.print("COUNT ID:  ");
-        Serial.println(Ecount);
         Serial.print("IDA: ");
         Serial.println(Frame[Ecount]);
         break;
@@ -1063,8 +985,6 @@ void Ex_Remote_Builder(){
       else{
         STATE_ENC = ARBITRATION_LOSS_STATE;
       }
-        Serial.print("COUNT RTR:  ");
-        Serial.println(Ecount);
         Serial.print("RTR: ");
         Serial.println(Frame[Ecount]);
         break;
@@ -1076,8 +996,6 @@ void Ex_Remote_Builder(){
       else{
         STATE_ENC = ARBITRATION_LOSS_STATE;
       }
-        Serial.print("COUNT IDE:  ");
-        Serial.println(Ecount);
         Serial.print("IDE: ");
         Serial.println(Frame[Ecount]);
         break;
@@ -1094,8 +1012,6 @@ void Ex_Remote_Builder(){
       else{
         STATE_ENC = ARBITRATION_LOSS_STATE;
       }
-          Serial.print("COUNT ID:  ");
-          Serial.println(Ecount);
           Serial.print("IDA: ");
           Serial.println(Frame[Ecount]);
           break;
@@ -1107,32 +1023,24 @@ void Ex_Remote_Builder(){
       else{
         STATE_ENC = ARBITRATION_LOSS_STATE;
       }
-        Serial.print("COUNT RZERO:  ");
-        Serial.println(Ecount);
         Serial.print("R0: ");
         Serial.println(Frame[Ecount]);
         break;
     case R1:
       Frame[Ecount] = '0';   // 33 position
       STATE_ENC = R2;
-      Serial.print("COUNT RZERO:  ");
-      Serial.println(Ecount);
       Serial.print("R0: ");
       Serial.println(Frame[Ecount]);
       break;
     case R2:
       Frame[Ecount] = '0';   // 34 position
       STATE_ENC = DLC;
-      Serial.print("COUNT RZERO:  ");
-      Serial.println(Ecount);
       Serial.print("R0: ");
       Serial.println(Frame[Ecount]);
       break;
     case DLC:
       if(Ecount < 38){
         Frame[Ecount] = dlc[Ecount-35];   // 35 - 38
-        Serial.print("COUNT DLC:  ");
-        Serial.println(Ecount);
       }
       else {
         Frame[Ecount] = dlc[Ecount-35];
@@ -1146,8 +1054,6 @@ void Ex_Remote_Builder(){
     case crce:
       if(Ecount < 53){      // 39 - 53 Position
         Frame[Ecount] = crc[Ecount - 39];
-        Serial.print("COUNT CRC:  ");
-        Serial.println(Ecount);
       }
       else {
         Frame[Ecount] = crc[Ecount - 39];
@@ -1187,8 +1093,6 @@ void Ex_Remote_Builder(){
       BS_FLAG = false;
       if(Ecount < 63){        // 57-63
         Frame[Ecount] = '1';
-        Serial.print("COUNT EOF:  ");
-        Serial.println(Ecount);
       }
       else {
         Frame[Ecount] = '1';
@@ -1201,8 +1105,6 @@ void Ex_Remote_Builder(){
       BS_FLAG = false;
       if(Ecount < 66){
         Frame[Ecount] = '1';
-        Serial.print("COUNT INTERFRAME SPACING:  ");
-        Serial.println(Ecount);
       }
       else {
         Frame[Ecount] = '1';
@@ -1227,14 +1129,11 @@ void Ex_Remote_Builder(){
 //ERROR FRAME CONSTRUCTOR
 
 void Error_Builder(){
-  Serial.print("Error Builder\n");
   if(SEND_BIT){
   switch(STATE_ENC){
     case ERROR_FLAG_STATE:
       if(Ecount < 5){
           Frame[Ecount] = '0';
-          Serial.print("COUNT ERROR FLAG:  ");
-          Serial.println(Ecount);
         }
         else {
           Frame[Ecount] = '0';
@@ -1248,8 +1147,6 @@ void Error_Builder(){
     BS_FLAG = false;
       if(Ecount < 14){
             Frame[Ecount] = '1';
-            Serial.print("COUNT ERROR DELIMITER:  ");
-            Serial.println(Ecount);
           }
           else {
             Frame[Ecount] = '1';
@@ -1272,20 +1169,15 @@ void Error_Builder(){
 //OVERLOAD FRAME CONSTRUCTOR
 
 void Overload_Builder(){
-  Serial.print("Overload Builder\n");
   if(SEND_BIT){
   switch(STATE_ENC){
     case OVERLOAD_FLAG_STATE:
       if(Ecount < 5){
           Frame[Ecount] = '0';
-          Serial.print("COUNT OVERLOAD FLAG:  ");
-          Serial.println(Ecount);
         }
         else {
           Frame[Ecount] = '0';
           STATE_ENC = OVERLOAD_DELIMITER;
-          Serial.print("COUNT OVERLOAD FLAG:  ");
-          Serial.println(Ecount);
         }
         BS_FLAG = false;
         Serial.print("OVERLOAD FLAG: ");
@@ -1294,14 +1186,10 @@ void Overload_Builder(){
     case OVERLOAD_DELIMITER:
       if(Ecount < 14){
             Frame[Ecount] = '1';
-            Serial.print("COUNT OVERLOAD DELIMITER:  ");
-            Serial.println(Ecount);
           }
           else {
             Frame[Ecount] = '1';
             STATE_ENC = WAIT;
-            Serial.print("COUNT OVERLOAD DELIMITER:  ");
-            Serial.println(Ecount);
           }
           Serial.print("OVERLOAD_DELIMITER: ");
           Serial.println(Frame[Ecount]);
