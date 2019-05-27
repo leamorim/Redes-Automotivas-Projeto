@@ -63,7 +63,7 @@ OVERLOAD_DELIMITER, OVERLOAD_FLAG_STATE, ARBITRATION_LOSS_STATE} STATE_DEC, STAT
   int DLC_L = 8;
   int FF = FRAME_FORMAT; //FRAME FORMAT
   int FT = FRAME_TYPE; //FRAME TYPE
-  bool FRAME_START = false;
+  bool FRAME_START = true;
 /****** TESTES ******/
 
 
@@ -86,7 +86,7 @@ volatile char last_bit_bt = '\0';
   unsigned int count_decoder = 0;
   bool ERROR_FLAG = false;
   bool BED_FLAG = false;
-  bool BUS_IDLE_FLAG = true;
+  bool BUS_IDLE_FLAG = false;
   bool ACK_FLAG = false;
   bool SoF_FLAG = false;
   bool OVERLOAD_FLAG = false;
@@ -128,7 +128,7 @@ volatile char last_bit_bt = '\0';
     unsigned int count_bs_decoder = 0;
     char last_bit_dec;
 
-    char BIT_TO_SAVE;
+    char BIT_TO_SAVE = '\0';
     bool CAPTURE,BSE_FLAG, BSD_FLAG = true; 
   // Bit Stuffing Decoder END
 
@@ -330,8 +330,6 @@ void Frame_Printer(char*v,int ff,int ft,int dlc_l){
         Serial.print(v[i]);
       }
     }
-  }
-      Serial.println();
 }
 
 // BASE FRAME BUILDERS
@@ -715,7 +713,7 @@ void Ex_Data_Builder(int DLC_L){
       else{
         STATE_ENC = ARBITRATION_LOSS_STATE;
       }
-          Serial.print("IDA: ");
+          Serial.print("IDB: ");
           Serial.println(Frame[Ecount]);
           break;
           
@@ -1996,6 +1994,44 @@ void check_arbitration(){
 //Funções Auxiliares END
 
 
+//Loop BEGIN
+
+
+void func_writing_point(){
+    //Serial.println("Writing_point na função junto com BT");
+    if(ACK_FLAG){//Flag do Decoder para indicar o envio de um bit recessivo de ACK_SLOT
+      CAN_TX = '0';
+      mySerial.write(CAN_TX);
+      //Serial.print(mySerial.write(CAN_TX));
+      //Serial.print(" CAN_TX == ");
+      //Serial.println(CAN_TX);
+
+    }
+    else{
+    Frame_Builder(FF,FT,DLC_L);
+    //Frame_Printer(Frame,FF,FT,DLC_L);
+    bit_stuffing_encoder();
+    if(CAN_TX == '0'){
+      mySerial.write(CAN_TX);
+    }
+    else if(CAN_TX == '1'){
+      mySerial.write(CAN_TX);
+    }
+    //mySerial.write(CAN_TX);
+    }
+}
+
+
+void func_sample_point(){
+    if(ACK_SLOT_FLAG){
+      check_ack();//Retorna ACK_SLOT_CONFIRM
+    }
+    bit_stuffing_decoder(CAN_RX);
+    UC_DECODER();
+    check_arbitration();//funçao q checa arbitração
+}
+
+
 //Bit_Timing_Module BEGIN
 
   //Edge Detector - Bit Timing
@@ -2028,6 +2064,61 @@ void check_arbitration(){
     Plot_Tq = !Plot_Tq; 
   }
 
+void UC_BT(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
+    Edge_Detector();
+    Inc_Count();
+    //print_state(); // função para debugar q n foi adicionada ao all
+    Writing_Point = false;
+    Sample_Point = false;
+
+      switch(STATE_BT){
+        case SYNC:
+        //Serial.println("SYNC");
+        Writing_Point = true;
+        func_writing_point();
+          if(count_bt >= L_SYNC){
+              count_bt = 0; //0 ou 1 ?
+              STATE_BT = SEG1;
+          }
+          break;
+        
+        case SEG1:
+          //Serial.println("SEG1");
+          if(count_bt == (L_SEG1 +Ph_Error)){
+            STATE_BT = SEG2;
+            Sample_Point = true;
+            if(mySerial.available() > 0 ){
+              CAN_RX = mySerial.read();//Capturar do barramento
+            }
+            else{
+              CAN_RX = '\0';
+            }
+            //func_sample_point();
+            count_bt = 0;
+            Ph_Error = 0;
+          }
+        
+        break;
+        
+        case SEG2:
+          //Serial.println("SEG2");
+          if(count_bt == (L_SEG2 - Ph_Error) || SS_Flag){
+            if(SS_Flag){
+              STATE_BT = SEG1;
+            }
+            else{
+              STATE_BT = SYNC;
+            }
+            SS_Flag = false;
+            count_bt = 0;
+            Ph_Error = 0;
+          }
+        break;
+  }
+    Hard_Sync = false;
+    Soft_Sync = false;
+}
+
 void HS_ISR() {
   Hard_Sync = true;
   Timer1.start(); //reinicia timerone
@@ -2042,8 +2133,6 @@ void HS_ISR() {
 //Bit_Timing_Module END
 
 
-
-
 //Setup BEGIN
 
 void setup() {
@@ -2055,8 +2144,6 @@ void setup() {
   STATE_BS_DEC = INACTIVE;//State do Bit Stuffing do Decoder
   STATE_BS_ENC = INACTIVE;//State do BS do Encoder
   count_bt = 0;//contador do Bit Timing
-  attachInterrupt(0, HS_ISR, FALLING);
-  attachInterrupt(1, SS_ISR, FALLING);
 
   //Comunicação Serial
   pinMode(CAN_RX_PIN,INPUT);
@@ -2064,53 +2151,18 @@ void setup() {
   mySerial.begin(9600);
 }
 
-
-
 //Setup END
 
 
-//Loop BEGIN
 
-
-void func_writing_point(){
-    Serial.println("Writing_point na função junto com BT");
-    if(ACK_FLAG){//Flag do Decoder para indicar o envio de um bit recessivo de ACK_SLOT
-      CAN_TX = '0';
-      Serial.print(mySerial.write(CAN_TX));
-      Serial.print(" CAN_TX == ");
-      Serial.println(CAN_TX);
-
-    }
-    else{
-    Frame_Builder(FF,FT,DLC_L);
-    //Frame_Printer(Frame,FF,FT,DLC_L);
-    bit_stuffing_encoder();
-    if(CAN_TX == '0'){
-      Serial.print(mySerial.write(CAN_TX));
-      Serial.print(" CAN_TX == ");
-      Serial.println(CAN_TX);
-    }
-    else if(CAN_TX == '1'){
-      Serial.print(mySerial.write(CAN_TX));
-      Serial.print(" CAN_TX == ");
-      Serial.println(CAN_TX);
-    }
-    //mySerial.write(CAN_TX);
-    }
-}
-
-
-void func_sample_point(){
-    if(ACK_SLOT_FLAG){
-      check_ack();//Retorna ACK_SLOT_CONFIRM
-    }
-    bit_stuffing_decoder(CAN_RX);
-    UC_DECODER();
-    check_arbitration();//funçao q checa arbitração
-}
 
 void loop(){
-   
+  if(Serial.available() > 0){
+    char start_flag = Serial.read();
+    if(start_flag = 's'){
+      FRAME_START = false;
+    }
+  }
 }
 
 //Loop END
