@@ -1,16 +1,19 @@
 //Bibliotecas e Defines BEGIN
 #include <TimerOne.h>
+#include <SoftwareSerial.h>
 
-#define CAN_RX_PIN 8
-#define CAN_TX_PIN 9
+#define CAN_RX_PIN 11
+#define CAN_TX_PIN 10
+SoftwareSerial mySerial(CAN_RX_PIN,CAN_TX_PIN);
+
 
     //Bit_Timing Defines
-#define TQ 1000000  //Tempo em Microssegundos
+#define TQ 100000  //Tempo em Microssegundos
 #define L_SYNC 1
 #define L_PROP 1
-#define L_PH_SEG1 6
-#define L_PH_SEG2 8
-#define SJW 4
+#define L_PH_SEG1 2
+#define L_PH_SEG2 3
+#define SJW 1
 /// Tamanhos de L_SEG1 E L_SEG2, saídas do módulo TQ_Configurator
 #define L_SEG1 (L_PROP+L_PH_SEG1)
 #define L_SEG2 L_PH_SEG2
@@ -132,7 +135,7 @@ volatile char last_bit_bt = '\0';
 
 //Encoder Variáveis
 
-    bool ARBITRATION_LOSS =  true;//Indica a perca de Arbitração, este valor é entrada do Frame builder e saída do BS
+    bool ARBITRATION_LOSS =  false;//Indica a perca de Arbitração, este valor é entrada do Frame builder e saída do BS
     bool ACK_SLOT_FLAG = false;//Sinal enviado do Frame_Builder para o BS para indicar que o campo atual é o de ACK_SLOT
     bool ACK_CONFIRM =  true;//Sinal enviado do BS para o Frame_Builder para indicar que o ACK foi recebido com sucesso
 
@@ -237,23 +240,27 @@ void UC_BT(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
 
       switch(STATE_BT){
         case SYNC:
-          if(count_bt == L_SYNC){
+        //Serial.println("SYNC");
+        Writing_Point = true;
+        func_writing_point();
+          if(count_bt >= L_SYNC){
               count_bt = 0; //0 ou 1 ?
               STATE_BT = SEG1;
           }
           break;
         
         case SEG1:
+          //Serial.println("SEG1");
           if(count_bt == (L_SEG1 +Ph_Error)){
             STATE_BT = SEG2;
             Sample_Point = true;
-            bool aux_read = digitalRead(CAN_RX_PIN);//Capturar do barramento
-            if(aux_read == false){
-              CAN_RX = '0';
+            if(mySerial.available() > 0 ){
+              CAN_RX = mySerial.read();//Capturar do barramento
             }
-            if(aux_read == true){
-              CAN_RX = '1';
+            else{
+              CAN_RX = '\0';
             }
+            //func_sample_point();
             count_bt = 0;
             Ph_Error = 0;
           }
@@ -261,6 +268,7 @@ void UC_BT(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
         break;
         
         case SEG2:
+          //Serial.println("SEG2");
           if(count_bt == (L_SEG2 - Ph_Error) || SS_Flag){
             if(SS_Flag){
               STATE_BT = SEG1;
@@ -268,7 +276,6 @@ void UC_BT(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
             else{
               STATE_BT = SYNC;
             }
-            Writing_Point = true;
             SS_Flag = false;
             count_bt = 0;
             Ph_Error = 0;
@@ -2217,6 +2224,11 @@ void setup() {
   count_bt = 0;//contador do Bit Timing
   attachInterrupt(0, HS_ISR, FALLING);
   attachInterrupt(1, SS_ISR, FALLING);
+
+  //Comunicação Serial
+  pinMode(CAN_RX_PIN,INPUT);
+  pinMode(CAN_TX_PIN,OUTPUT);
+  mySerial.begin(9600);
 }
 
 
@@ -2227,36 +2239,45 @@ void setup() {
 //Loop BEGIN
 
 
-
-void loop(){
-  /*if(Writing_Point){
+void func_writing_point(){
+    Serial.println("Writing_point na função junto com BT");
     if(ACK_FLAG){//Flag do Decoder para indicar o envio de um bit recessivo de ACK_SLOT
       CAN_TX = '0';
-      digitalWrite(CAN_TX_PIN,LOW);
+      Serial.print(mySerial.write(CAN_TX));
+      Serial.print(" CAN_TX == ");
+      Serial.println(CAN_TX);
+
     }
     else{
     Frame_Builder(FF,FT,DLC_L);
     //Frame_Printer(Frame,FF,FT,DLC_L);
     bit_stuffing_encoder();
     if(CAN_TX == '0'){
-      digitalWrite(CAN_TX_PIN,LOW);
+      Serial.print(mySerial.write(CAN_TX));
+      Serial.print(" CAN_TX == ");
+      Serial.println(CAN_TX);
     }
     else if(CAN_TX == '1'){
-      digitalWrite(CAN_TX_PIN,HIGH);
+      Serial.print(mySerial.write(CAN_TX));
+      Serial.print(" CAN_TX == ");
+      Serial.println(CAN_TX);
     }
-    //digitalWrite(CAN_TX);
+    //mySerial.write(CAN_TX);
     }
-  }
-  */
+}
 
-  if(Sample_Point){
+
+void func_sample_point(){
     if(ACK_SLOT_FLAG){
       check_ack();//Retorna ACK_SLOT_CONFIRM
     }
     bit_stuffing_decoder(CAN_RX);
     UC_DECODER();
     check_arbitration();//funçao q checa arbitração
-  }
+}
+
+void loop(){
+   
 }
 
 //Loop END
