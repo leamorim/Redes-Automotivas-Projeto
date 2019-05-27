@@ -197,108 +197,6 @@ char *MakeCRC(char *BitString)
 //CRC_Module END
 
 
-
-//Bit_Timing_Module BEGIN
-
-  //Edge Detector - Bit Timing
-  void Edge_Detector(){
-    if(BUS_IDLE && CAN_RX == '0'){//Hard_Sync
-      HS_ISR();
-    }
-    else if (last_bit_bt == '1' && CAN_RX == '0'){//Soft_Sync
-      SS_ISR();
-    }
-    last_bit_bt = CAN_RX;
-  }
-
-  void SS_ISR() {
-    if(STATE_BT == SEG1){
-      Soft_Sync = true;
-      Ph_Error = min(count_bt,SJW);
-    }  
-    else if(STATE_BT == SEG2){
-      Ph_Error = min(((L_SEG2 + 1)-count_bt),SJW);
-      if(L_SEG2 - Ph_Error <= count_bt){
-        SS_Flag = true;
-      }
-      Soft_Sync = true;
-    }
-  }
-
-  void Inc_Count(){
-    count_bt++;
-    Plot_Tq = !Plot_Tq; 
-  }
-
-void UC_BT(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
-    Edge_Detector();
-    Inc_Count();
-    //print_state(); // função para debugar q n foi adicionada ao all
-    Writing_Point = false;
-    Sample_Point = false;
-
-      switch(STATE_BT){
-        case SYNC:
-        //Serial.println("SYNC");
-        Writing_Point = true;
-        func_writing_point();
-          if(count_bt >= L_SYNC){
-              count_bt = 0; //0 ou 1 ?
-              STATE_BT = SEG1;
-          }
-          break;
-        
-        case SEG1:
-          //Serial.println("SEG1");
-          if(count_bt == (L_SEG1 +Ph_Error)){
-            STATE_BT = SEG2;
-            Sample_Point = true;
-            if(mySerial.available() > 0 ){
-              CAN_RX = mySerial.read();//Capturar do barramento
-            }
-            else{
-              CAN_RX = '\0';
-            }
-            //func_sample_point();
-            count_bt = 0;
-            Ph_Error = 0;
-          }
-        
-        break;
-        
-        case SEG2:
-          //Serial.println("SEG2");
-          if(count_bt == (L_SEG2 - Ph_Error) || SS_Flag){
-            if(SS_Flag){
-              STATE_BT = SEG1;
-            }
-            else{
-              STATE_BT = SYNC;
-            }
-            SS_Flag = false;
-            count_bt = 0;
-            Ph_Error = 0;
-          }
-        break;
-  }
-    Hard_Sync = false;
-    Soft_Sync = false;
-}
-
-void HS_ISR() {
-  Hard_Sync = true;
-  Timer1.start(); //reinicia timerone
-  Timer1.attachInterrupt(UC_BT,TQ);//reinicia timerone
-  count_bt = 0;
-  STATE_BT = SYNC;//talvez antes da reinicialização do timerone, verificar
-  Writing_Point = true;
-  //Serial.println("Hard_Sync");
-}
-
-
-//Bit_Timing_Module END
-
-
 //Encoder BEGIN
 
   //Bit Stuffing Encoder BEGIN
@@ -2096,6 +1994,53 @@ void check_arbitration(){
 
 
 //Funções Auxiliares END
+
+
+//Bit_Timing_Module BEGIN
+
+  //Edge Detector - Bit Timing
+  void Edge_Detector(){
+    if(BUS_IDLE && CAN_RX == '0'){//Hard_Sync
+      HS_ISR();
+    }
+    else if (last_bit_bt == '1' && CAN_RX == '0'){//Soft_Sync
+      SS_ISR();
+    }
+    last_bit_bt = CAN_RX;
+  }
+
+  void SS_ISR() {
+    if(STATE_BT == SEG1){
+      Soft_Sync = true;
+      Ph_Error = min(count_bt,SJW);
+    }  
+    else if(STATE_BT == SEG2){
+      Ph_Error = min(((L_SEG2 + 1)-count_bt),SJW);
+      if(L_SEG2 - Ph_Error <= count_bt){
+        SS_Flag = true;
+      }
+      Soft_Sync = true;
+    }
+  }
+
+  void Inc_Count(){
+    count_bt++;
+    Plot_Tq = !Plot_Tq; 
+  }
+
+void HS_ISR() {
+  Hard_Sync = true;
+  Timer1.start(); //reinicia timerone
+  Timer1.attachInterrupt(UC_BT,TQ);//reinicia timerone
+  count_bt = 0;
+  STATE_BT = SYNC;//talvez antes da reinicialização do timerone, verificar
+  Writing_Point = true;
+  //Serial.println("Hard_Sync");
+}
+
+
+//Bit_Timing_Module END
+
 
 
 
