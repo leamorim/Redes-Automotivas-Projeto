@@ -54,16 +54,22 @@ OVERLOAD_DELIMITER, OVERLOAD_FLAG_STATE, ARBITRATION_LOSS_STATE} STATE_DEC, STAT
 
 
 /****** TESTES ******/
-  //Encoder testes
-  char *ID = "10011001001";
-  char *idb = "110000000001111010";
-  char dlc[4] = {'1','0','0','0'};
-  char *data = "0000001010101010101010101010101010101010101010101010101010101010";
+  //Encoder teste
+  char *ID = "10011001001";         //0x4C9
+  char *idb = "110000000001111010"; //0x3007A
+  char dlc[4] = {'1','0','0','0'};  //8 bytes
+  char *data = "1010101010101010101010101010101010101010101010101010101010101010";// 0xAAAAAAAAAAAAAAAA
 
-  int DLC_L = 8;
+//Extended Remote FRAME
+/*  char *ID = "11001111110";         //0x67E
+  char *idb = "110001100001111010"; //0x3187A
+  char dlc[4] = {'1','0','0','0'};  //8 bytes
+  char *data = "1010101010101010101010101010101010101010101010101010101010101010";// 0xAAAAAAAAAAAAAAAA
+*/
+  int DLC_L = 0;
   int FF = FRAME_FORMAT; //FRAME FORMAT
   int FT = FRAME_TYPE; //FRAME TYPE
-  bool FRAME_START = false;
+  bool FRAME_START = true;
 /****** TESTES ******/
 
 
@@ -128,7 +134,7 @@ volatile char last_bit_bt = '\0';
     unsigned int count_bs_decoder = 0;
     char last_bit_dec;
 
-    char BIT_TO_SAVE;
+    char BIT_TO_SAVE = '\0';
     bool CAPTURE,BSE_FLAG, BSD_FLAG = true; 
   // Bit Stuffing Decoder END
 
@@ -713,7 +719,7 @@ void Ex_Data_Builder(int DLC_L){
       else{
         STATE_ENC = ARBITRATION_LOSS_STATE;
       }
-          Serial.print("IDA: ");
+          Serial.print("IDB: ");
           Serial.println(Frame[Ecount]);
           break;
           
@@ -2174,10 +2180,13 @@ void setup() {
 //Setup END
 
 
-
-
 void loop(){
-   
+  if(Serial.available() > 0){
+    char start_flag = Serial.read();
+    if(start_flag = 's'){
+      FRAME_START = false;
+    }
+  }
 }
 
 //Loop END
