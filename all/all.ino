@@ -37,6 +37,10 @@ OVERLOAD_DELIMITER, OVERLOAD_FLAG_STATE, ARBITRATION_LOSS_STATE} STATE_DEC, STAT
   #define L_EOF 7
   #define L_INTERFRAME_SPACING 3
 
+  // Decoder teste
+  char *ID_A_DECODER = "10001001001";         //0x0449
+  char *ID_B_DECODER = "110000000001111010"; //0x3007A
+
 
     //Encoder Defines
 //Sinais de controle para construção de um frame
@@ -55,7 +59,7 @@ OVERLOAD_DELIMITER, OVERLOAD_FLAG_STATE, ARBITRATION_LOSS_STATE} STATE_DEC, STAT
 
 /****** TESTES ******/
   //Encoder teste
-  char *ID = "10011001001";         //0x4C9
+  char *ID = "10001001001";         //0x449
   char *idb = "110000000001111010"; //0x3007A
   char dlc[4] = {'1','0','0','0'};  //8 bytes
   char *data = "1010101010101010101010101010101010101010101010101010101010101010";// 0xAAAAAAAAAAAAAAAA
@@ -102,7 +106,7 @@ volatile char last_bit_bt = '\0';
 
   unsigned int Data_Flag = 0;
   unsigned int Remote_Flag = 0;
-  unsigned int Extend_Flag = 0;
+  unsigned int Extended_Flag = 0; // 0-> Base || 1 -> Extended
 
   char Vetor_ID_A[11];
   char Vetor_DLC[4];
@@ -1269,6 +1273,98 @@ void bit_stuffing_decoder(char Bit_Read){
   return num;
  }
 
+void check_id(unsigned int Extended_Flag,  char *ID_A_DECODER,  char *ID_B_DECODER,char *ID_A,  char *ID_B)
+{
+  bool ID_FLAG = true;
+  int k = 0;
+
+  for(k = 0; k < 11; k++)
+  {
+    if(ID_A_DECODER[k] != ID_A[k])
+    {
+      ID_FLAG  = false;
+    }
+
+  }
+
+  if(Extend_Flag)
+  {
+    for(k = 0, k < 18, k++)
+    {
+      if(ID_B_DECODER[k] != ID_B[k])
+      {
+        ID_FLAG  = false;
+      }
+
+    }
+  }
+
+  if(ID_FLAG) 
+  {
+    Serial.println("ID Checked");
+  }
+  else
+  {
+    Serial.println("OUTRO ID");
+  }
+
+}
+
+void print_frame(char rtr, char ide, char *ID_A, char *ID_B, char dlc, char *Data, char *CRC)
+{
+  long int Value;
+  int i = 0;
+
+  if(ide)
+  {
+    serial.println("EXTENDED FRAME");
+
+    Value = BinToDec(ID_A, 11);
+    Serial.print("ID_A: 0x0");
+    Serial.println(Value,HEX);
+
+    Serial.print("ID_B: 0x0");
+    BinToHex('0','0',ID_B[0],ID_B[1]);
+    for(i = 0; i < 16; i += 4)
+    {
+      BinToHex(ID_B[i+2],ID_B[i+3],ID_B[i+4],ID_B[i+5]);
+    }
+  }
+  else
+  {
+    serial.println("BASE FRAME");
+    Value = BinToDec(ID_A, 11);
+    Serial.print("ID_A: 0x0");
+    Serial.println(Value,HEX);
+  }
+
+  if(rtr)
+  {
+    serial.println("REMOTE FRAME");
+    serial.print("DLC: ");
+    serial.print(DLC);
+
+    serial.println("");
+    serial.println("DATA:");
+
+  }
+  else
+  {
+    serial.println("DATA FRAME");
+
+    for(i = 0; i < ((Value_DLC*8)/4);  i += 4)
+    {
+      BinToHex(Data[i],Data[i+1],Data[i+2],Data[i+3]);
+     
+    }
+  }
+
+  Value = BinToDec(CRC, L_CRC);
+  Serial.print("CRC: 0x0");
+  Serial.println(CRC,HEX);
+
+}
+
  void BinToHex(char bit1, char bit2, char bit3, char bit4) {
     if(bit1 == '0' && bit2 == '0' && bit3 == '0' && bit4 == '0')
     {
@@ -1509,7 +1605,7 @@ void UC_DECODER()
               Serial.println("SRR = 1");
               Serial.println("IDE = 1");
               Serial.println("Extend Frame");
-              Extend_Flag = 1;
+              Extended_Flag = 1;
               count_decoder  = 0;
               STATE_DEC = ID_B;
             }  
@@ -1632,7 +1728,7 @@ void UC_DECODER()
           Serial.print(Value_DLC);
           Serial.println("byte");
 
-          if(Data_Flag == 1 && Extend_Flag == 0)
+          if(Data_Flag == 1 && Extended_Flag == 0)
           {         
             
             if(Value_DLC == 0)
@@ -1647,13 +1743,13 @@ void UC_DECODER()
               STATE_DEC = DATA;
             }
           }
-          else if(Remote_Flag == 1 && Extend_Flag == 0)
+          else if(Remote_Flag == 1 && Extended_Flag == 0)
           {
-            Remote_Flag = 0;
+            //Remote_Flag = 0;
             count_decoder  = 0;
             STATE_DEC = CRC_READ;
           }
-          else if(Data_Flag == 1 &&  Extend_Flag == 1)
+          else if(Data_Flag == 1 &&  Extended_Flag == 1)
           {        
             if(Value_DLC == 0)
             {
@@ -1668,11 +1764,11 @@ void UC_DECODER()
             }
 
           }
-          else if(Remote_Flag == 1 && Extend_Flag == 1)
+          else if(Remote_Flag == 1 && Extended_Flag == 1)
           {
             Serial.println("DATA: 0x00");
-            Remote_Flag = 0;
-            Extend_Flag - 0;  
+            //Remote_Flag = 0;
+            //Extended_Flag - 0;  
             count_decoder  = 0;
             STATE_DEC = CRC_READ;
           }
@@ -1704,16 +1800,16 @@ void UC_DECODER()
           count_frame += (Value_DLC*8);
           Serial.println("");
 
-          if(Data_Flag == 1 && Extend_Flag == 0)
+          if(Data_Flag == 1 && Extended_Flag == 0)
           {
-            Data_Flag = 0;
+            //Data_Flag = 0;
             count_decoder  = 0;
             STATE_DEC = CRC_READ;
           }
-          else if(Data_Flag == 1 && Extend_Flag == 1)
+          else if(Data_Flag == 1 && Extended_Flag == 1)
           {
-            Data_Flag = 0;
-            Extend_Flag = 0;
+            //Data_Flag = 0;
+            //Extended_Flag = 0;
             count_decoder  = 0;
             STATE_DEC = CRC_READ;
 
