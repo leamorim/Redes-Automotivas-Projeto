@@ -25,7 +25,7 @@ BIT_ERROR , STATE_BED_FLAG1, OVERLOAD, WAIT , SOF, IDE, crce, SRR,R1,R2,
 IDB,ERROR_FLAG_STATE, ERROR_DELIMITER,
 OVERLOAD_DELIMITER, OVERLOAD_FLAG_STATE, ARBITRATION_LOSS_STATE} STATE_DEC, STATE_ENC;
 
-    //Decoder Defines
+    //Decoder Defines5
     /*Tamanho dos Estados*/
   #define L_BIT 1
   #define L_ID_A 11
@@ -1287,9 +1287,9 @@ void check_id(unsigned int Extended_Flag,  char *ID_A_DECODER,  char *ID_B_DECOD
 
   }
 
-  if(Extend_Flag)
+  if(Extended_Flag)
   {
-    for(k = 0, k < 18, k++)
+    for(k = 0; k < 18; k++)
     {
       if(ID_B_DECODER[k] != ID_B[k])
       {
@@ -1310,14 +1310,16 @@ void check_id(unsigned int Extended_Flag,  char *ID_A_DECODER,  char *ID_B_DECOD
 
 }
 
-void print_frame(char rtr, char ide, char *ID_A, char *ID_B, char dlc, char *Data, char *CRC)
+void print_frame(char RTR, char IDE, char *ID_A, char *ID_B,unsigned int Value_DLC, char *Data, char *CRC)
 {
   long int Value;
   int i = 0;
 
-  if(ide)
+  if(IDE == '1')
   {
-    serial.println("EXTENDED FRAME");
+    Serial.println("SRR = 1");
+    Serial.println("IDE = 1");
+    Serial.println("EXTENDED FRAME");
 
     Value = BinToDec(ID_A, 11);
     Serial.print("ID_A: 0x0");
@@ -1329,40 +1331,46 @@ void print_frame(char rtr, char ide, char *ID_A, char *ID_B, char dlc, char *Dat
     {
       BinToHex(ID_B[i+2],ID_B[i+3],ID_B[i+4],ID_B[i+5]);
     }
+    Serial.println("");
   }
-  else
+  else if(IDE == '0')
   {
-    serial.println("BASE FRAME");
+    Serial.println("IDE = 0");
+    Serial.println("BASE FRAME");
     Value = BinToDec(ID_A, 11);
     Serial.print("ID_A: 0x0");
     Serial.println(Value,HEX);
   }
 
-  if(rtr)
+  if(RTR == '1')
   {
-    serial.println("REMOTE FRAME");
-    serial.print("DLC: ");
-    serial.print(DLC);
+    Serial.println("RTR = 1");
+    Serial.println("REMOTE FRAME");
+    Serial.print("DLC: ");
+    Serial.print(Value_DLC);
 
-    serial.println("");
-    serial.println("DATA:");
-
+    Serial.println("");
+    Serial.println("DATA: 0x00");
+    
   }
-  else
+  else if(RTR == '0')
   {
-    serial.println("DATA FRAME");
+    Serial.println("RTR = 0");
+    Serial.println("DATA FRAME");
+    Serial.print("DATA: 0x");
 
-    for(i = 0; i < ((Value_DLC*8)/4);  i += 4)
+    for(i = 0; i < ((Value_DLC*8));  i += 4)
     {
       BinToHex(Data[i],Data[i+1],Data[i+2],Data[i+3]);
      
     }
+    Serial.println("");
   }
-
+  
   Value = BinToDec(CRC, L_CRC);
-  Serial.print("CRC: 0x0");
-  Serial.println(CRC,HEX);
-
+  Serial.print("CRC:");
+  Serial.println(CRC); //HEX ???
+  
 }
 
  void BinToHex(char bit1, char bit2, char bit3, char bit4) {
@@ -2283,6 +2291,9 @@ void loop(){
       FRAME_START = false;
     }
   }
+
+  //check_id(Extended_Flag,  ID_A_DECODER, ID_B_DECODER, ID_A, ID_B); //Confirmar se tá enviando para o mesmo ID
+  //print_frame(RTR,IDE,ID_A,ID_B,Value_DLC,Data,CRC); //Chamar no Final de Cada Frame
 }
 
 //Loop END
