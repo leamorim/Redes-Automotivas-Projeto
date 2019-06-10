@@ -25,6 +25,8 @@ BIT_ERROR , STATE_BED_FLAG1, OVERLOAD, WAIT , SOF, IDE, crce, SRR,R1,R2,
 IDB,ERROR_FLAG_STATE, ERROR_DELIMITER,
 OVERLOAD_DELIMITER, OVERLOAD_FLAG_STATE, ARBITRATION_LOSS_STATE} STATE_DEC, STATE_ENC;
 
+enum send_frame_states {FORMAT_SEND = 0, TYPE_SEND, ID_A_SEND, ID_B_SEND, DATA_SEND, WAIT_SEND, DLC_SEND} STATE_SEND;
+
     //Decoder Defines
     /*Tamanho dos Estados*/
   #define L_BIT 1
@@ -54,23 +56,38 @@ OVERLOAD_DELIMITER, OVERLOAD_FLAG_STATE, ARBITRATION_LOSS_STATE} STATE_DEC, STAT
 
 
 /****** TESTES ******/
-  //Encoder teste
-  char *ID = "10011001001";         //0x4C9
+//Encoder teste -- DADOS BASE
+/*  char *ID = "10001001001";         //0x449
+  char *idb = "110000000001111010"; //0x3007A
+  char dlc[4] = {'1','0','0','0'};  //8 bytes
+  char *data = "1010101010101010101010101010101010101010101010101010101010101010";// 0xAAAAAAAAAAAAAAAA
+*/
+/*  //Encoder teste -- DADOS BASE
+  char *ID = "11001110010";         //0x672
   char *idb = "110000000001111010"; //0x3007A
   char dlc[4] = {'1','0','0','0'};  //8 bytes
   char *data = "1010101010101010101010101010101010101010101010101010101010101010";// 0xAAAAAAAAAAAAAAAA
 
-//Extended Remote FRAME
-/*  char *ID = "11001111110";         //0x67E
-  char *idb = "110001100001111010"; //0x3187A
+  //Encoder teste -- REMOTO BASE
+  char *ID = "11001110010";         //0x672
+  char *idb = "110000000001111010"; //0x3007A
   char dlc[4] = {'1','0','0','0'};  //8 bytes
   char *data = "1010101010101010101010101010101010101010101010101010101010101010";// 0xAAAAAAAAAAAAAAAA
 */
-  int DLC_L = 0;
-  int FF = FRAME_FORMAT; //FRAME FORMAT
-  int FT = FRAME_TYPE; //FRAME TYPE
+
+
+//Extended Remote FRAME
+  char ID [11] = "";         //0x67E
+  char idb [18] = ""; //0x3187A
+  char dlc[5] = "";  //8 
+  char data [64] = "";// 0xAAAAAAAAAAAAAAAA
+
+  int DLC_L;
+  int FF ; //FRAME FORMAT
+  int FT ; //FRAME TYPE
   bool FRAME_START = true;
 /****** TESTES ******/
+
 
 
 //Variáveis Globais BEGIN
@@ -260,17 +277,15 @@ void bit_stuffing_encoder(){
                 }
                 STATE_BS_ENC = COUNTING;
             }
-            else{ //count_encoder igual a 6
+            else{ //sexto bit aqui
                 //STATE_BS_ENC_ENC = BIT_STUFFED;//dá pra criar um novo estado mas acho q dá pra deixar tudo nesse estado
                // Serial.println("BIT STUFFED");
                 if(!BS_FLAG){
                   STATE_BS_ENC = INACTIVE;
                 }
                 else{
-                  if(BIT_TO_WRITE == last_bit_enc){
                     SEND_BIT = false;
                     count_encoder = 1;
-                    
                     if(BIT_TO_WRITE == '0'){
                         CAN_TX = '1';
                     }
@@ -278,16 +293,10 @@ void bit_stuffing_encoder(){
                         CAN_TX = '0';
                     }
                     STATE_BS_ENC = BIT_STUFFED;
-                  }
-                  else {
-                    SEND_BIT = true;
-                    count_encoder = 1;
-                    CAN_TX = BIT_TO_WRITE;
                     last_bit_enc = BIT_TO_WRITE;
                   }
                 }
-            }
-        }
+          }
         break;
 
     case BIT_STUFFED:
@@ -305,6 +314,7 @@ void bit_stuffing_encoder(){
     }
  }
   //Bit Stuffing Encoder FIM
+
 
 
 void Frame_Printer(char*v,int ff,int ft,int dlc_l){
@@ -492,7 +502,8 @@ void Data_Builder(int DLC_L){
     case WAIT:
       Serial.println("FRAME END");
       STATE_ENC = WAIT;
-      while(1);//Bloqueia no fim do frame
+      FRAME_START = true;
+  //      while(1);//Bloqueia no fim do frame
       break;
     }
       if(!ARBITRATION_LOSS){     
@@ -638,7 +649,8 @@ void Remote_Builder(){
     case WAIT:
       Serial.println("FRAME END");
       STATE_ENC = WAIT;
-      while(1);
+      FRAME_START = true;
+      //while(1);
       break;     
     }
       if(!ARBITRATION_LOSS){ 
@@ -835,7 +847,8 @@ void Ex_Data_Builder(int DLC_L){
     case WAIT:
       Serial.println("FRAME END");
       STATE_ENC = WAIT;
-      while(1);
+      FRAME_START = true;
+      //while(1);
       break;     
       }
       if(!ARBITRATION_LOSS){     
@@ -1018,7 +1031,8 @@ void Ex_Remote_Builder(){
     case WAIT:
       Serial.println("FRAME END");
       STATE_ENC = WAIT;
-      while(1);
+      FRAME_START = true;
+      //while(1);
       break;     
       }
       if(!ARBITRATION_LOSS){     
@@ -1060,7 +1074,8 @@ void Error_Builder(){
     case WAIT:
       Serial.println("FRAME END");
       STATE_ENC = WAIT;
-      while(1);
+      FRAME_START = true;
+      //while(1);
       break;     
       } 
       BIT_TO_WRITE = Frame[Ecount];
@@ -1098,7 +1113,8 @@ void Overload_Builder(){
           break;
     case WAIT:
       Serial.println("FRAME END");
-      while(1);
+      FRAME_START = true;
+      //while(1);
       break;     
       } 
       BIT_TO_WRITE = Frame[Ecount];
@@ -1233,19 +1249,23 @@ void bit_stuffing_decoder(char Bit_Read){
         break;    
 
         case BIT_STUFFED:
-            count_bs_decoder++;
-            CAPTURE = false;            
-            if(Bit_Read != last_bit_dec){//bit stuffing foi gerado corretamente e deve ser retirado     
-                  count_bs_decoder = 1;
-                  if(BSD_FLAG){              
-                      STATE_BS_DEC = COUNTING;
-                  }
-              }
-              else{//erro de bit stuffing
+            count_bs_decoder++;      
+            if(!BSD_FLAG){
+              CAPTURE = true;
+              STATE_BS_DEC = INACTIVE;
+            }
+            else{
+              CAPTURE = false;
+              if(Bit_Read == last_bit_dec){
                   BSE_FLAG = true;
                   STATE_BS_DEC = INACTIVE;
-              }             
-              last_bit_dec = Bit_Read;    
+              }
+              else{//bit stuffing gerado corretamente
+                count_bs_decoder = 1;
+                STATE_BS_DEC = COUNTING;
+              }
+            }
+            last_bit_dec = Bit_Read;    
         break;
     }
 }
@@ -1346,7 +1366,8 @@ void UC_DECODER()
     switch(STATE_DEC)
     {
       case BUS_IDLE:
-        
+
+        Serial.println("Bus_Idle");
         Vetor_Frame[0] = '0';
         count_frame = 1;
         
@@ -2013,12 +2034,13 @@ void check_arbitration(){
 
 
 void func_writing_point(){
-    Serial.println("Writing_point na função junto com BT");
+    //Serial.println("Writing_point na função junto com BT");
     if(ACK_FLAG){//Flag do Decoder para indicar o envio de um bit recessivo de ACK_SLOT
       CAN_TX = '0';
-      Serial.print(mySerial.write(CAN_TX));
-      Serial.print(" CAN_TX == ");
-      Serial.println(CAN_TX);
+      mySerial.write(CAN_TX);
+      //Serial.print(mySerial.write(CAN_TX));
+      //Serial.print(" CAN_TX == ");
+      //Serial.println(CAN_TX);
 
     }
     else{
@@ -2026,14 +2048,16 @@ void func_writing_point(){
     //Frame_Printer(Frame,FF,FT,DLC_L);
     bit_stuffing_encoder();
     if(CAN_TX == '0'){
-      Serial.print(mySerial.write(CAN_TX));
-      Serial.print(" CAN_TX == ");
-      Serial.println(CAN_TX);
+      mySerial.write(CAN_TX);
+      //Serial.print(mySerial.write(CAN_TX));
+      //Serial.print(" CAN_TX == ");
+      //Serial.println(CAN_TX);
     }
     else if(CAN_TX == '1'){
-      Serial.print(mySerial.write(CAN_TX));
-      Serial.print(" CAN_TX == ");
-      Serial.println(CAN_TX);
+      mySerial.write(CAN_TX);
+      //Serial.print(mySerial.write(CAN_TX));
+      //Serial.print(" CAN_TX == ");
+      //Serial.println(CAN_TX);
     }
     //mySerial.write(CAN_TX);
     }
@@ -2097,7 +2121,7 @@ void UC_BT(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
         case SYNC:
         //Serial.println("SYNC");
         Writing_Point = true;
-       // func_writing_point();
+        func_writing_point();
           if(count_bt >= L_SYNC){
               count_bt = 0; //0 ou 1 ?
               STATE_BT = SEG1;
@@ -2167,6 +2191,7 @@ void setup() {
   STATE_DEC = BUS_IDLE;//STATE DO DECODER
   STATE_BS_DEC = INACTIVE;//State do Bit Stuffing do Decoder
   STATE_BS_ENC = INACTIVE;//State do BS do Encoder
+  STATE_SEND = FORMAT_SEND;
   count_bt = 0;//contador do Bit Timing
   attachInterrupt(0, HS_ISR, FALLING);
   attachInterrupt(1, SS_ISR, FALLING);
@@ -2180,13 +2205,229 @@ void setup() {
 //Setup END
 
 
-void loop(){
-  if(Serial.available() > 0){
-    char start_flag = Serial.read();
-    if(start_flag = 's'){
-      FRAME_START = false;
+//Hex_to_Bin
+
+
+void hex_to_bin(char* hex, char* bin){
+   unsigned int i = 0; 
+
+ /* Extract first digit and find binary of each hex digit */
+    for(i=0; hex[i]!='\0'; i++){
+        switch(hex[i])
+        {
+            case '0':
+                    if(i!=0){
+                    strcat(bin, "0000"); 
+                    }
+                break;
+            case '1':
+                    strcat(bin, "0001");
+                break;
+            case '2':
+                    strcat(bin, "0010");
+                  
+                break;
+            case '3':
+                    strcat(bin, "0011");
+                  
+                break;
+            case '4':
+                    strcat(bin, "0100");
+                  
+                break;
+            case '5':
+                    strcat(bin, "0101");
+                break;
+            case '6':
+                  strcat(bin, "0110");
+                break;
+            case '7':
+                  strcat(bin, "0111");
+                break;
+            case '8':
+                  strcat(bin, "1000");
+                break;
+            case '9':
+                strcat(bin, "1001");
+                break;
+            case 'a':
+            case 'A':
+                strcat(bin, "1010");
+                break;
+            case 'b':
+            case 'B':
+                strcat(bin, "1011");
+                break;
+            case 'c':
+            case 'C':
+                strcat(bin, "1100");
+                break;
+            case 'd':
+            case 'D':
+                strcat(bin, "1101");
+                break;
+            case 'e':
+            case 'E':
+                strcat(bin, "1110");
+                break;
+            case 'f':
+            case 'F':
+                strcat(bin, "1111");
+                break;
+        }
     }
+}
+
+void send_frame(){
+  switch (STATE_SEND){
+    case FORMAT_SEND:
+      Serial.println("Digite 'b' para base frame e 'e' para extended frame" );
+      if(Serial.available() > 0 ){
+        if(Serial.read() == 'b'){
+          FF = BASE;
+          STATE_SEND = TYPE_SEND;
+        }
+        else if(Serial.read() ==  'e'){
+          FF = EXTENDED;
+          STATE_SEND = TYPE_SEND;
+        }
+      }
+    break;
+
+    case TYPE_SEND:
+      Serial.println("Digite 'd' para data frame e 'r' para remote frame" );
+      if(Serial.available() > 0){
+        if(Serial.read() == 'd'){
+          FT = DATA_FRAME;
+          STATE_SEND = ID_A_SEND;
+        }
+        else if(Serial.read() == 'r'){
+          FT = REMOTE_FRAME;
+          STATE_SEND = ID_A_SEND;
+        }
+      }
+    break;
+
+    case ID_A_SEND:
+      Serial.println("Digite o ID_A do frame em Hexadecimal ");
+      if(Serial.available() > 0 ){
+        char ida_input [5] = "";//entrada em hexadecimal
+        String input = Serial.readStringUntil('\n');
+        input.toCharArray(ida_input,5);
+        char aux [14] = "";
+        hex_to_bin(ida_input,aux);
+        for(int i = 0; i < 11; i++){
+          ID[i] = aux[i+1];
+        }
+        if(FF == BASE){
+          STATE_SEND = DLC_SEND;
+        }
+        else if(FF == EXTENDED){
+          STATE_SEND = ID_B_SEND;
+        }
+      }
+      break;
+      
+      case DLC_SEND:
+      Serial.println("Digite o ID_B do frame em Hexadecimal ");
+      if(Serial.available() > 0 ){
+        char input_dlc = Serial.read();
+        
+        if(input_dlc > '8'){
+          DLC_L = 8;
+          dlc[0] = '1';
+          dlc[1] = '0';
+          dlc[2] = '0';
+          dlc[3] = '0';
+          STATE_SEND = DATA_SEND;
+        }
+        else if(input_dlc == '0'){
+          DLC_L = 0;
+          dlc[0] = '0';
+          dlc[1] = '0';
+          dlc[2] = '0';
+          dlc[3] = '0';
+          STATE_SEND = DATA_SEND;
+        }
+        else{
+          //input.toCharArray(input_dlc,1);
+          hex_to_bin(input_dlc,dlc);
+          STATE_SEND = DATA_SEND; 
+        }
+      }
+
+      break;
+      
+      case ID_B_SEND:
+      Serial.println("Digite o ID_B do frame em Hexadecimal ");
+      if(Serial.available() > 0 ){
+        char idb_input [6] = "";//entrada em hexadecimal
+        String input = Serial.readStringUntil('\n');
+        input.toCharArray(idb_input,6);
+        char aux [21] = "";
+        hex_to_bin(idb_input,aux);
+        for(int i = 0; i < 18; i++){
+          idb[i] = aux[i+2];
+        }
+        STATE_SEND = DLC_SEND;
+
+      break;
+
+      case DATA_SEND:
+      Serial.println("digite o valor do dado em Hexadecimal");
+      if(Serial.available() > 0 ){
+        char data_input [17] = "";//entrada em hexadecimal
+        String input = Serial.readStringUntil('\n');
+        input.toCharArray(data_input,16);
+        hex_to_bin(data_input,data);
+        FRAME_START = false;
+        STATE_SEND = WAIT_SEND;
+        //prints dos valores
+        if(FF == BASE){
+          Serial.println("Base Frame");
+        }
+        else if(FF = EXTENDED){
+          Serial.println("Extended Frame");
+        }
+
+        if(FT == DATA_FRAME){
+          Serial.println("Data Frame");
+        }
+        else if(FT = REMOTE_FRAME){
+          Serial.println("Remote Frame");
+        }
+
+        Serial.print("ID_A: ");
+        Serial.println(ID);
+        if(FF == EXTENDED){
+          Serial.print("ID_B: ");
+          Serial.println(idb);
+        }
+        Serial.print("DlC: ");
+        Serial.println(DLC_L);
+
+        if(FT = DATA_FRAME){
+          Serial.print("Data:");
+          Serial.println(data);
+        }
+      }
+      break;
+
+      case WAIT_SEND:
+          if(FRAME_START){
+            STATE_SEND = FORMAT_SEND;
+              ID [11] = "";         
+              idb [18] = ""; 
+              dlc[4] = "";  
+              data [64] = "";
+          }
+      break;
   }
+}
+}
+
+void loop(){
+  send_frame();
 }
 
 //Loop END
