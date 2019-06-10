@@ -1140,15 +1140,15 @@ void Frame_Builder(int FF,int FT,int DLC_L){
     }
     if(FF == BASE){
         Frame = (char*) calloc(47 + DLC_L*8,sizeof(char));  //BASE FRAME CREATION
-        FRAME_START = true;
+      //  FRAME_START = true;
       }
       else if(FF == EXTENDED){
         Frame = (char*) calloc(67 + DLC_L*8,sizeof(char));  //EXTENDED FRAME CREATION
-        FRAME_START = true;
+     //   FRAME_START = true;
       }
       else if(FT == ERROR_FRAME || OVERLOAD_FRAME){
         Frame = (char*) calloc(14,sizeof(char)); 
-        FRAME_START = true;
+      //  FRAME_START = true;
       }
   }
   // Base Frame Builders
@@ -2237,12 +2237,12 @@ void UC_BT(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
           if(count_bt == (L_SEG1 +Ph_Error)){
             STATE_BT = SEG2;
             Sample_Point = true;
-            if(mySerial.available() > 0 ){
-              CAN_RX = mySerial.read();//Capturar do barramento
+           // if(mySerial.available() > 0 ){
+           //   CAN_RX = mySerial.read();//Capturar do barramento
               //Serial.print("CAN_RX = ");
               //Serial.println(CAN_RX);
-              func_sample_point();
-            }
+            //  func_sample_point();
+           // }
             else{
               CAN_RX = '\0';
             }
@@ -2304,6 +2304,7 @@ void setup() {
   pinMode(CAN_RX_PIN,INPUT);
   pinMode(CAN_TX_PIN,OUTPUT);
   mySerial.begin(9600);
+  Serial.println("Digite 'b' para base frame e 'e' para extended frame" );
 }
 
 //Setup END
@@ -2382,111 +2383,8 @@ void hex_to_bin(char* hex, char* bin){
     }
 }
 
-void send_frame(){
-  switch (STATE_SEND){
-    case FORMAT_SEND:
-      Serial.println("Digite 'b' para base frame e 'e' para extended frame" );
-      if(Serial.available() > 0 ){
-        if(Serial.read() == 'b'){
-          FF = BASE;
-          STATE_SEND = TYPE_SEND;
-        }
-        else if(Serial.read() ==  'e'){
-          FF = EXTENDED;
-          STATE_SEND = TYPE_SEND;
-        }
-      }
-    break;
-
-    case TYPE_SEND:
-      Serial.println("Digite 'd' para data frame e 'r' para remote frame" );
-      if(Serial.available() > 0){
-        if(Serial.read() == 'd'){
-          FT = DATA_FRAME;
-          STATE_SEND = ID_A_SEND;
-        }
-        else if(Serial.read() == 'r'){
-          FT = REMOTE_FRAME;
-          STATE_SEND = ID_A_SEND;
-        }
-      }
-    break;
-
-    case ID_A_SEND:
-      Serial.println("Digite o ID_A do frame em Hexadecimal ");
-      if(Serial.available() > 0 ){
-        char ida_input [5] = "";//entrada em hexadecimal
-        String input = Serial.readStringUntil('\n');
-        input.toCharArray(ida_input,5);
-        char aux [14] = "";
-        hex_to_bin(ida_input,aux);
-        for(int i = 0; i < 11; i++){
-          ID[i] = aux[i+1];
-        }
-        if(FF == BASE){
-          STATE_SEND = DLC_SEND;
-        }
-        else if(FF == EXTENDED){
-          STATE_SEND = ID_B_SEND;
-        }
-      }
-      break;
-      
-      case DLC_SEND:
-      Serial.println("Digite o ID_B do frame em Hexadecimal ");
-      if(Serial.available() > 0 ){
-        char input_dlc = Serial.read();
-        
-        if(input_dlc > '8'){
-          DLC_L = 8;
-          dlc[0] = '1';
-          dlc[1] = '0';
-          dlc[2] = '0';
-          dlc[3] = '0';
-          STATE_SEND = DATA_SEND;
-        }
-        else if(input_dlc == '0'){
-          DLC_L = 0;
-          dlc[0] = '0';
-          dlc[1] = '0';
-          dlc[2] = '0';
-          dlc[3] = '0';
-          STATE_SEND = DATA_SEND;
-        }
-        else{
-          //input.toCharArray(input_dlc,1);
-          hex_to_bin(input_dlc,dlc);
-          STATE_SEND = DATA_SEND; 
-        }
-      }
-
-      break;
-      
-      case ID_B_SEND:
-      Serial.println("Digite o ID_B do frame em Hexadecimal ");
-      if(Serial.available() > 0 ){
-        char idb_input [6] = "";//entrada em hexadecimal
-        String input = Serial.readStringUntil('\n');
-        input.toCharArray(idb_input,6);
-        char aux [21] = "";
-        hex_to_bin(idb_input,aux);
-        for(int i = 0; i < 18; i++){
-          idb[i] = aux[i+2];
-        }
-        STATE_SEND = DLC_SEND;
-
-      break;
-
-      case DATA_SEND:
-      Serial.println("digite o valor do dado em Hexadecimal");
-      if(Serial.available() > 0 ){
-        char data_input [17] = "";//entrada em hexadecimal
-        String input = Serial.readStringUntil('\n');
-        input.toCharArray(data_input,16);
-        hex_to_bin(data_input,data);
-        FRAME_START = false;
-        STATE_SEND = WAIT_SEND;
-        //prints dos valores
+void print_send_frame(){
+  //prints dos valores
         if(FF == BASE){
           Serial.println("Base Frame");
         }
@@ -2514,24 +2412,138 @@ void send_frame(){
           Serial.print("Data:");
           Serial.println(data);
         }
+}
+
+void send_frame(){
+  switch (STATE_SEND){
+    case FORMAT_SEND:
+
+      if(Serial.available() > 0 ){
+        char read_char = Serial.read();
+        if(read_char == 'b'){
+          FF = BASE;
+          STATE_SEND = TYPE_SEND;
+          Serial.println("Digite 'd' para data frame e 'r' para remote frame" );
+        }
+        if(read_char ==  'e'){
+          FF = EXTENDED;
+          STATE_SEND = TYPE_SEND;
+          Serial.println("Digite 'd' para data frame e 'r' para remote frame" );
+        }
+      }
+    break;
+
+    case TYPE_SEND:
+
+      if(Serial.available() > 0){
+        char read_char = Serial.read();
+        if(read_char == 'd'){
+          FT = DATA_FRAME;
+          STATE_SEND = ID_A_SEND; 
+          Serial.println("Digite o ID_A do frame de dados em Hexadecimal ");
+        }
+        else if(read_char == 'r'){
+          FT = REMOTE_FRAME;
+          STATE_SEND = ID_A_SEND;     
+          Serial.println("Digite o ID_A do frame remoto em Hexadecimal ");
+        }
+      }
+    break;
+
+    case ID_A_SEND:
+
+      if(Serial.available() > 0 ){
+        char ida_input [5] = "";//entrada em hexadecimal
+        String input = Serial.readStringUntil('\n');
+        input.toCharArray(ida_input,5);
+        char aux [14] = "";
+        hex_to_bin(ida_input,aux);
+        for(int i = 0; i < 11; i++){
+          ID[i] = aux[i+1];
+        }
+        if(FF == BASE){
+          STATE_SEND = DLC_SEND;
+          Serial.println("Digite DLC do frame em Número de bytes ");
+        }
+        else if(FF == EXTENDED){
+          STATE_SEND = ID_B_SEND;
+          Serial.println("Digite ID_B do frame em Hexadecimal");
+        }
+      }
+      break;
+      
+      case DLC_SEND:
+      if(Serial.available() > 0 ){
+        char input_dlc [5] = "";//entrada em hexadecimal
+        String dlc_input = Serial.readStringUntil('\n');
+        dlc_input.toCharArray(input_dlc,5);
+        hex_to_bin(input_dlc,dlc);
+        DLC_L = BinToDec(dlc,4);
+          
+        if(DLC_L > 8){
+          DLC_L = 8;
+          dlc[0] = '1';
+          dlc[1] = '0';
+          dlc[2] = '0';
+          dlc[3] = '0';
+        } 
+
+        if(FT == DATA_FRAME){
+          STATE_SEND = DATA_SEND;
+          Serial.println("digite o valor do dado em Hexadecimal");
+        }
+        else if(FT == REMOTE_FRAME){
+          STATE_SEND = WAIT_SEND;
+          FRAME_START = false;
+          print_send_frame();
+        }
+
+      }
+
+      break;
+      
+      case ID_B_SEND:
+      if(Serial.available() > 0 ){
+        char idb_input [6] = "";//entrada em hexadecimal
+        String input = Serial.readStringUntil('\n');
+        input.toCharArray(idb_input,6);
+        char aux [21] = "";
+        hex_to_bin(idb_input,aux);
+        for(int i = 0; i < 18; i++){
+          idb[i] = aux[i+2];
+        }
+        STATE_SEND = DLC_SEND;
+        Serial.println("digite o valor do DLC em número de bytes");
+      }
+      break;
+
+      case DATA_SEND:
+      if(Serial.available() > 0 ){
+        char data_input [17] = "";//entrada em hexadecimal
+        String input = Serial.readStringUntil('\n');
+        input.toCharArray(data_input,16);
+        hex_to_bin(data_input,data);
+        print_send_frame();
+        FRAME_START = false;
+        STATE_SEND = WAIT_SEND;
       }
       break;
 
       case WAIT_SEND:
           if(FRAME_START){
             STATE_SEND = FORMAT_SEND;
-              ID [11] = "";         
-              idb [18] = ""; 
-              dlc[4] = "";  
-              data [64] = "";
+            Serial.println("Digite 'b' para base frame e 'e' para extended frame" );
+            ID [11] = "";         
+            idb [18] = ""; 
+            dlc[4] = "";  
+            data [64] = "";
           }
       break;
   }
-
+}
   //check_id(Extended_Flag,  ID_A_DECODER, ID_B_DECODER, ID_A, ID_B); //Confirmar se tá enviando para o mesmo ID
   //print_frame(RTR,IDE,ID_A,ID_B,Value_DLC,Data,CRC); //Chamar no Final de Cada Frame
-}
-}
+
 
 void loop(){
   send_frame();
