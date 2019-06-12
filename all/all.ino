@@ -505,6 +505,7 @@ void Data_Builder(int DLC_L){
       break;
     case WAIT:
       Serial.println("FRAME END");
+      free(Frame);
       STATE_ENC = WAIT;
       FRAME_START = true;
   //      while(1);//Bloqueia no fim do frame
@@ -652,6 +653,7 @@ void Remote_Builder(){
       break;
     case WAIT:
       Serial.println("FRAME END");
+      free(Frame);
       STATE_ENC = WAIT;
       FRAME_START = true;
       //while(1);
@@ -850,6 +852,7 @@ void Ex_Data_Builder(int DLC_L){
       break;
     case WAIT:
       Serial.println("FRAME END");
+      free(Frame);
       STATE_ENC = WAIT;
       FRAME_START = true;
       //while(1);
@@ -1034,6 +1037,7 @@ void Ex_Remote_Builder(){
       break;
     case WAIT:
       Serial.println("FRAME END");
+      free(Frame);
       STATE_ENC = WAIT;
       FRAME_START = true;
       //while(1);
@@ -1076,6 +1080,7 @@ void Error_Builder(){
           Serial.println(Frame[Ecount]);
           break;
     case WAIT:
+      free(Frame);
       Serial.println("FRAME END");
       STATE_ENC = WAIT;
       FRAME_START = true;
@@ -1117,6 +1122,7 @@ void Overload_Builder(){
           break;
     case WAIT:
       Serial.println("FRAME END");
+      free(Frame);
       FRAME_START = true;
       //while(1);
       break;     
@@ -2288,7 +2294,7 @@ void HS_ISR() {
 //Setup BEGIN
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   Timer1.initialize(TQ);
   Timer1.attachInterrupt(UC_BT);
   STATE_BT = SYNC;//State Bit Timing UC
@@ -2303,7 +2309,7 @@ void setup() {
   //Comunicação Serial
   pinMode(CAN_RX_PIN,INPUT);
   pinMode(CAN_TX_PIN,OUTPUT);
-  mySerial.begin(9600);
+  mySerial.begin(115200);
   Serial.println("Digite 'b' para base frame e 'e' para extended frame" );
 }
 
