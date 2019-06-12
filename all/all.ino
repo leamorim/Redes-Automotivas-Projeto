@@ -90,6 +90,7 @@ enum send_frame_states {FORMAT_SEND = 0, TYPE_SEND, ID_A_SEND, ID_B_SEND, DATA_S
   int FF ; //FRAME FORMAT
   int FT ; //FRAME TYPE
   bool FRAME_START = true;
+  bool SEND_ENABLE = true;
 /****** TESTES ******/
 
 
@@ -370,7 +371,7 @@ void Data_Builder(int DLC_L){
       STATE_ENC = ID_A;
       BS_FLAG = true;
       Frame[Ecount] = '0';
-      Serial.print("SOF: ");
+      Serial.print("SOF_aqui: ");
       Serial.println(Frame[Ecount]);
       break;
     case ID_A:
@@ -507,6 +508,7 @@ void Data_Builder(int DLC_L){
       Serial.println("FRAME END");
       free(Frame);
       STATE_ENC = WAIT;
+      SEND_ENABLE = true;
       FRAME_START = true;
   //      while(1);//Bloqueia no fim do frame
       break;
@@ -655,8 +657,8 @@ void Remote_Builder(){
       Serial.println("FRAME END");
       free(Frame);
       STATE_ENC = WAIT;
+      SEND_ENABLE = true;
       FRAME_START = true;
-      //while(1);
       break;     
     }
       if(!ARBITRATION_LOSS){ 
@@ -854,8 +856,9 @@ void Ex_Data_Builder(int DLC_L){
       Serial.println("FRAME END");
       free(Frame);
       STATE_ENC = WAIT;
+      SEND_ENABLE = true;
       FRAME_START = true;
-      //while(1);
+      
       break;     
       }
       if(!ARBITRATION_LOSS){     
@@ -1039,9 +1042,10 @@ void Ex_Remote_Builder(){
       Serial.println("FRAME END");
       free(Frame);
       STATE_ENC = WAIT;
+      SEND_ENABLE = true;
       FRAME_START = true;
-      //while(1);
       break;     
+
       }
       if(!ARBITRATION_LOSS){     
       BIT_TO_WRITE = Frame[Ecount];
@@ -1080,11 +1084,11 @@ void Error_Builder(){
           Serial.println(Frame[Ecount]);
           break;
     case WAIT:
-      free(Frame);
       Serial.println("FRAME END");
+      free(Frame);
       STATE_ENC = WAIT;
+      SEND_ENABLE = true;
       FRAME_START = true;
-      //while(1);
       break;     
       } 
       BIT_TO_WRITE = Frame[Ecount];
@@ -1123,8 +1127,9 @@ void Overload_Builder(){
     case WAIT:
       Serial.println("FRAME END");
       free(Frame);
+      STATE_ENC = WAIT;
+      SEND_ENABLE = true;
       FRAME_START = true;
-      //while(1);
       break;     
       } 
       BIT_TO_WRITE = Frame[Ecount];
@@ -1146,15 +1151,15 @@ void Frame_Builder(int FF,int FT,int DLC_L){
     }
     if(FF == BASE){
         Frame = (char*) calloc(47 + DLC_L*8,sizeof(char));  //BASE FRAME CREATION
-      //  FRAME_START = true;
+        FRAME_START = true;
       }
       else if(FF == EXTENDED){
         Frame = (char*) calloc(67 + DLC_L*8,sizeof(char));  //EXTENDED FRAME CREATION
-     //   FRAME_START = true;
+        FRAME_START = true;
       }
       else if(FT == ERROR_FRAME || OVERLOAD_FRAME){
         Frame = (char*) calloc(14,sizeof(char)); 
-      //  FRAME_START = true;
+        FRAME_START = true;
       }
   }
   // Base Frame Builders
@@ -1989,6 +1994,8 @@ void UC_DECODER()
                     BED_FLAG = false;
                     count_decoder  = 0;
                     STATE_DEC = BUS_IDLE;
+                    Serial.println("Frame Recebido");
+                    Serial.println(frame_recebido);
                 }
           }
           else if(BIT_TO_SAVE == '0')
@@ -2142,43 +2149,51 @@ void check_arbitration(){
 
 //Loop BEGIN
 
+String frame_enviado = "";
+
 
 void func_writing_point(){
     //Serial.println("Writing_point na função junto com BT");
-    if(ACK_FLAG){//Flag do Decoder para indicar o envio de um bit recessivo de ACK_SLOT
+   /*  if(ACK_FLAG){//Flag do Decoder para indicar o envio de um bit recessivo de ACK_SLOT
       CAN_TX = '0';
       mySerial.write(CAN_TX);
-      //Serial.print(mySerial.write(CAN_TX));
-      //Serial.print(" CAN_TX == ");
-      //Serial.println(CAN_TX);
+      Serial.print(" CAN_TX == ");
+      Serial.println(CAN_TX);
 
-    }
-    else{
+    }*/
+    //else{
     Frame_Builder(FF,FT,DLC_L);
     //Frame_Printer(Frame,FF,FT,DLC_L);
     bit_stuffing_encoder();
-    if(CAN_TX == '0'){
-      mySerial.write(CAN_TX);
-      //Serial.print(mySerial.write(CAN_TX));
-      //Serial.print(" CAN_TX == ");
-      //Serial.println(CAN_TX);
-    }
-    else if(CAN_TX == '1'){
-      mySerial.write(CAN_TX);
-      //Serial.print(mySerial.write(CAN_TX));
-      //Serial.print(" CAN_TX == ");
-      //Serial.println(CAN_TX);
-    }
+    if(!SEND_ENABLE){
+      if(CAN_TX == '0'){
+        mySerial.write(CAN_TX);
+        frame_enviado.concat(CAN_TX);
+        Serial.print(" CAN_TX == ");
+        Serial.println(CAN_TX);
+      }
+      else if(CAN_TX == '1'){
+        mySerial.write(CAN_TX);
+        Serial.print(" CAN_TX == ");
+        frame_enviado.concat(CAN_TX);
+        Serial.println(CAN_TX);
+      }
+    }  
     //mySerial.write(CAN_TX);
-    }
+    //}
 }
+
+String frame_recebido = "";
 
 
 void func_sample_point(){
-    if(ACK_SLOT_FLAG){
+/*     if(ACK_SLOT_FLAG){
       check_ack();//Retorna ACK_SLOT_CONFIRM
     }
+    */
+
     bit_stuffing_decoder(CAN_RX);
+    frame_recebido.concat(CAN_RX);
     //Serial.print("BIT_TO_SAVE: ");
     //Serial.println(BIT_TO_SAVE);
    // Serial.print("capture: ");
@@ -2243,12 +2258,12 @@ void UC_BT(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
           if(count_bt == (L_SEG1 +Ph_Error)){
             STATE_BT = SEG2;
             Sample_Point = true;
-           // if(mySerial.available() > 0 ){
-           //   CAN_RX = mySerial.read();//Capturar do barramento
-              //Serial.print("CAN_RX = ");
-              //Serial.println(CAN_RX);
-            //  func_sample_point();
-           // }
+            if(mySerial.available() > 0 ){
+            //  CAN_RX = mySerial.read();//Capturar do barramento
+            //  Serial.print("CAN_RX = ");
+            //  Serial.println(CAN_RX);
+           //   func_sample_point();
+            }
             else{
               CAN_RX = '\0';
             }
@@ -2469,7 +2484,7 @@ void send_frame(){
         }
         if(FF == BASE){
           STATE_SEND = DLC_SEND;
-          Serial.println("Digite DLC do frame em Número de bytes ");
+          Serial.println("Digite DLC do frame base em Número de bytes");
         }
         else if(FF == EXTENDED){
           STATE_SEND = ID_B_SEND;
@@ -2480,11 +2495,11 @@ void send_frame(){
       
       case DLC_SEND:
       if(Serial.available() > 0 ){
-        char input_dlc [5] = "";//entrada em hexadecimal
+        char input_dlc [2] = "";//entrada em hexadecimal
         String dlc_input = Serial.readStringUntil('\n');
-        dlc_input.toCharArray(input_dlc,5);
+        dlc_input.toCharArray(input_dlc,2);
         hex_to_bin(input_dlc,dlc);
-        DLC_L = BinToDec(dlc,4);
+        DLC_L = BinToDec(dlc,2);
           
         if(DLC_L > 8){
           DLC_L = 8;
@@ -2501,6 +2516,7 @@ void send_frame(){
         else if(FT == REMOTE_FRAME){
           STATE_SEND = WAIT_SEND;
           FRAME_START = false;
+          SEND_ENABLE = false;
           print_send_frame();
         }
 
@@ -2531,12 +2547,16 @@ void send_frame(){
         hex_to_bin(data_input,data);
         print_send_frame();
         FRAME_START = false;
+        SEND_ENABLE = false;
         STATE_SEND = WAIT_SEND;
       }
       break;
 
       case WAIT_SEND:
-          if(FRAME_START){
+          if(SEND_ENABLE){
+            Serial.println("FRAME enviado");
+            Serial.println(frame_enviado);
+            frame_enviado = "";
             STATE_SEND = FORMAT_SEND;
             Serial.println("Digite 'b' para base frame e 'e' para extended frame" );
             ID [11] = "";         
