@@ -243,9 +243,10 @@
           char aux [12] = "";
           hex_to_bin(ida_input,aux);
           Serial.println(aux);
-          for(int i = 0; i < 11; i++){
-            ID[i] = aux[i+1];
+          for(int i = 0; i < 12; i++){
+            ID[i] = aux[i];
           }
+   
           Serial.println(ID);
           if(FF == BASE){
             STATE_SEND = DLC_SEND;
@@ -349,7 +350,7 @@
     unsigned int count_encoder = 0;
     char last_bit_enc;
     bool SEND_BIT = true;
-    bool BS_FLAG;
+    bool BS_FLAG = false;
     char BIT_TO_WRITE;
 
   //Bit Stuffing Encoder BEGIN
@@ -489,19 +490,26 @@
         break; 
       case SOF:
         Ecount = 0;
-        STATE_ENC = ID_A;
         BS_FLAG = true;
         Frame[Ecount] = '0';
         Serial.print("SOF: ");
+        Serial.print("Loss_arbitr:");
+        Serial.print(ARBITRATION_LOSS);
+        Serial.print(" Ecount ");
+        Serial.print(Ecount);
+        Serial.print("frame[ec]");
+        Serial.println(Frame[Ecount]); 
       // Serial.println(Frame[Ecount]);
+        STATE_ENC = ID_A;
+        
         break;
       case ID_A:
         if(!ARBITRATION_LOSS){
           if(Ecount < 11){
-            Frame[Ecount] = ID[Ecount-1];
+            Frame[Ecount] = ID[Ecount];
           }
           else {
-            Frame[Ecount] = ID[Ecount-1];   
+            Frame[Ecount] = ID[Ecount];   
             STATE_ENC = RTR;
           }
         }
@@ -633,7 +641,13 @@
         break;
       }
         if(!ARBITRATION_LOSS){     
+          
         BIT_TO_WRITE = Frame[Ecount];
+        
+        Serial.print("bit_to_w:");
+        Serial.print(BIT_TO_WRITE);
+        Serial.print(" frame[ec] ");
+        Serial.println(Frame[Ecount]);
         Ecount++; 
         }
     }
@@ -781,7 +795,12 @@
         break;     
       }
         if(!ARBITRATION_LOSS){ 
+          
         BIT_TO_WRITE = Frame[Ecount];
+        Serial.print("bit_to_w:");
+        Serial.print(BIT_TO_WRITE);
+        Serial.print(" frame[ec] ");
+        Serial.println(Frame[Ecount]);
         Ecount++; 
         }
     }
@@ -1352,21 +1371,25 @@
 
     
     void func_writing_point(){
-        Frame_Builder(FF,FT,DLC_L);
-        //Frame_Printer(Frame,FF,FT,DLC_L);
-        bit_stuffing_encoder();
+        if(!GET_FRAME){
+          Frame_Builder(FF,FT,DLC_L);
+          //Frame_Printer(Frame,FF,FT,DLC_L);
+          bit_stuffing_encoder();
+          
         if(CAN_TX == '0'){//aqui que vai escrever no barramento, fazer
           mySerial.write(CAN_TX);
           //Serial.print(mySerial.write(CAN_TX));
-          //Serial.print(" CAN_TX == ");
-          //Serial.println(CAN_TX);
+          Serial.print(" CAN_TX == ");
+          Serial.println(CAN_TX);
         }
         else if(CAN_TX == '1'){
           mySerial.write(CAN_TX);
           //Serial.print(mySerial.write(CAN_TX));
-          //Serial.print(" CAN_TX == ");
-          //Serial.println(CAN_TX);
+          Serial.print(" CAN_TX == ");
+          Serial.println(CAN_TX);
         }   
+
+        }
     }
 
 
@@ -1490,6 +1513,7 @@
     //Comunicação Serial
     //  pinMode(CAN_RX_PIN,INPUT);
     //  pinMode(CAN_TX_PIN,OUTPUT);
+     mySerial.begin(115200);
     Serial.println("Digite 'b' para base frame e 'e' para extended frame" );
   }
 //Setup END
