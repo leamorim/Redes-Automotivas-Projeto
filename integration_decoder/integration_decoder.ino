@@ -1,135 +1,106 @@
-//Bit_Timing_Module BEGIN
     #include <TimerOne.h>
     #include <SoftwareSerial.h>
 
-    #define CAN_RX_PIN 11
-    #define CAN_TX_PIN 10
-    SoftwareSerial mySerial(CAN_RX_PIN,CAN_TX_PIN);
 
-    //Bit_Timing Defines
-    #define TQ 100000  //Tempo em Microssegundos
-    #define L_SYNC 1
-    #define L_PROP 1
-    #define L_PH_SEG1 2
-    #define L_PH_SEG2 3
-    #define SJW 1
-    /// Tamanhos de L_SEG1 E L_SEG2, saídas do módulo TQ_Configurator
-    #define L_SEG1 (L_PROP+L_PH_SEG1)
-    #define L_SEG2 L_PH_SEG2
+    char CAN_TX = '\0';
+    char CAN_RX = '\0';
+    bool BUS_IDLE_FLAG = true;
 
-    //Variáveis Globais BEGIN
-        //Bit_Timing Variáveis
-    enum bt_estados {SYNC = 0,SEG1 = 1,SEG2 = 2} STATE_BT;
-    unsigned int count_bt = 0;
-    int Ph_Error = 0;
-    volatile bool Plot_Tq = false;
-    volatile bool Sample_Point = false;
-    volatile bool Writing_Point = false;
-    volatile bool Soft_Sync = false;
-    volatile bool Hard_Sync = false;
-    volatile bool SS_Flag = false;
-    volatile char last_bit_bt = '\0';
+  enum end_dec_estados {BUS_IDLE = 0,SoF = 1,ID_A = 2,RTR_SRR = 3,IDE_0 = 4,R0 = 5, DLC = 6,
+    DATA = 7, CRC_READ = 8,CRC_DELIMITER = 9, ACK_SLOT = 10, ACK_DELIMITER, EoF,
+    INTERFRAME_SPACING,IDE_1, ID_B,RTR, R1R0, STATE_ERROR,
+    FORMAT_ERROR, ACK_ERROR, CRC_ERROR, BIT_STUFFING_ERROR, STATE_BSD_FLAG1,
+    BIT_ERROR , STATE_BED_FLAG1, OVERLOAD, WAIT , SOF, IDE, crce, SRR,R1,R2,
+    IDB,ERROR_FLAG_STATE, ERROR_DELIMITER,
+    OVERLOAD_DELIMITER, OVERLOAD_FLAG_STATE, ARBITRATION_LOSS_STATE} STATE_DEC, STATE_ENC;
 
+  enum bs_estados {INACTIVE = 0,COUNTING,BIT_STUFFED} STATE_BS_ENC,STATE_BS_DEC;
 
-    //Edge Detector - Bit Timing
-    void Edge_Detector(){
-        if(BUS_IDLE && CAN_RX == '0'){//Hard_Sync
-            HS_ISR();
+    long int BinToDec(char bin[], int tam){
+        unsigned int i;
+        long int num = 0;
+
+        for(i=0; i < tam; i++)
+        {
+            if(bin[i] == '1')
+            {
+                num = ((num*2) +1);
+            }
+            if(bin[i] == '0')
+            {
+                num = (num*2);
+            }
         }
-        else if (last_bit_bt == '1' && CAN_RX == '0'){//Soft_Sync
-            SS_ISR();
+        return num;
+    }
+
+    
+    void BinToHex(char bit1, char bit2, char bit3, char bit4) {
+        if(bit1 == '0' && bit2 == '0' && bit3 == '0' && bit4 == '0')
+        {
+        Serial.print("0");
         }
-        last_bit_bt = CAN_RX;
-    }
-
-    void SS_ISR() {
-        if(STATE_BT == SEG1){
-            Soft_Sync = true;
-            Ph_Error = min(count_bt,SJW);
-        }  
-        else if(STATE_BT == SEG2){
-            Ph_Error = min(((L_SEG2 + 1)-count_bt),SJW);
-            if(L_SEG2 - Ph_Error <= count_bt){
-                SS_Flag = true;
-            }
-            Soft_Sync = true;
+        else if (bit1 == '0' && bit2 == '0' && bit3 == '0' && bit4 == '1')
+        {
+        Serial.print("1");
+        }
+        else if (bit1 == '0' && bit2 == '0' && bit3 == '1' && bit4 == '0')
+        {
+        Serial.print("2");
+        }
+        else if (bit1 == '0' && bit2 == '0' && bit3 == '1' && bit4 == '1')
+        {
+        Serial.print("3");
+        }
+        else if (bit1 == '0' && bit2 == '1' && bit3 == '0' && bit4 == '0')
+        {
+        Serial.print("4");
+        }
+        else if (bit1 == '0' && bit2 == '1' && bit3 == '0' && bit4 == '1')
+        {
+        Serial.print("5");
+        }
+        else if (bit1 == '0' && bit2 == '1' && bit3 == '1' && bit4 == '0')
+        {
+        Serial.print("6");
+        }
+        else if (bit1 == '0' && bit2 == '1' && bit3 == '1' && bit4 == '1')
+        {
+        Serial.print("7");
+        }
+        else if (bit1 == '1' && bit2 == '0' && bit3 == '0' && bit4 == '0')
+        {
+        Serial.print("8");
+        }
+        else if (bit1 == '1' && bit2 == '0' && bit3 == '0' && bit4 == '1')
+        {
+        Serial.print("9");
+        }
+        else if (bit1 == '1' && bit2 == '0' && bit3 == '1' && bit4 == '0')
+        {
+        Serial.print("A");
+        }
+        else if (bit1 == '1' && bit2 == '0' && bit3 == '1' && bit4 == '1')
+        {
+        Serial.print("B");
+        }
+        else if (bit1 == '1' && bit2 == '1' && bit3 == '0' && bit4 == '0')
+        {
+        Serial.print("C");
+        }
+        else if (bit1 == '1' && bit2 == '1' && bit3 == '0' && bit4 == '1')
+        {
+        Serial.print("D");
+        }
+        else if (bit1 == '1' && bit2 == '1' && bit3 == '1' && bit4 == '0')
+        {
+        Serial.print("E");
+        }
+        else if (bit1 == '1' && bit2 == '1' && bit3 == '1' && bit4 == '1')
+        {
+        Serial.print("F");
         }
     }
-
-    void Inc_Count(){
-        count_bt++;
-        Plot_Tq = !Plot_Tq; 
-    }
-
-    void UC_BT(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
-        Edge_Detector();
-        Inc_Count();
-        //print_state(); // função para debugar q n foi adicionada ao all
-        Writing_Point = false;
-        Sample_Point = false;
-
-        switch(STATE_BT){
-            case SYNC:
-            //Serial.println("SYNC");
-            Writing_Point = true;
-            func_writing_point();
-            if(count_bt >= L_SYNC){
-                count_bt = 0; //0 ou 1 ?
-                STATE_BT = SEG1;
-            }
-            break;
-            
-            case SEG1:
-            //Serial.println("SEG1");
-            if(count_bt == (L_SEG1 +Ph_Error)){
-                STATE_BT = SEG2;
-                Sample_Point = true;
-            // if(mySerial.available() > 0 ){
-            //   CAN_RX = mySerial.read();//Capturar do barramento
-                //Serial.print("CAN_RX = ");
-                //Serial.println(CAN_RX);
-                //  func_sample_point();
-            // }
-                else{
-                CAN_RX = '\0';
-                }
-                count_bt = 0;
-                Ph_Error = 0;
-            }
-            
-            break;
-            
-            case SEG2:
-            //Serial.println("SEG2");
-            if(count_bt == (L_SEG2 - Ph_Error) || SS_Flag){
-                if(SS_Flag){
-                STATE_BT = SEG1;
-                }
-                else{
-                STATE_BT = SYNC;
-                }
-                SS_Flag = false;
-                count_bt = 0;
-                Ph_Error = 0;
-            }
-            break;
-    }
-        Hard_Sync = false;
-        Soft_Sync = false;
-    }
-
-    void HS_ISR() {
-    Hard_Sync = true;
-    Timer1.start(); //reinicia timerone
-    Timer1.attachInterrupt(UC_BT,TQ);//reinicia timerone
-    count_bt = 0;
-    STATE_BT = SYNC;//talvez antes da reinicialização do timerone, verificar
-    Writing_Point = true;
-    //Serial.println("Hard_Sync");
-    }
-
-
-//Bit_Timing_Module END
 
 
 //CRC_Module BEGIN
@@ -173,8 +144,18 @@
 
 //Decoder BEGIN
 
+    #define L_BIT 1
+    #define L_ID_A 11
+    #define L_ID_B 18
+    #define L_R1R0 2
+    #define L_DLC 4
+    #define L_DATA 8*Value_DLC
+    #define L_CRC 15
+    #define L_EOF 7
+    #define L_INTERFRAME_SPACING 3
+
     // Bit Stuffing Decoder BEGIN
-    enum bs_estados {INACTIVE = 0,COUNTING,BIT_STUFFED} STATE_BS_ENC,STATE_BS_DEC;
+
     unsigned int count_bs_encoder = 0;
     unsigned int count_bs_decoder = 0;
     char last_bit_dec;
@@ -184,19 +165,10 @@
     // Bit Stuffing Decoder END
 
 
-    enum dec_estados {BUS_IDLE = 0,SoF = 1,ID_A = 2,RTR_SRR = 3,IDE_0 = 4,R0 = 5, DLC = 6,
-    DATA = 7, CRC_READ = 8,CRC_DELIMITER = 9, ACK_SLOT = 10, ACK_DELIMITER, EoF,
-    INTERFRAME_SPACING,IDE_1, ID_B,RTR, R1R0, STATE_ERROR,
-    FORMAT_ERROR, ACK_ERROR, CRC_ERROR, BIT_STUFFING_ERROR, STATE_BSD_FLAG1,
-    BIT_ERROR , STATE_BED_FLAG1, OVERLOAD, WAIT , SOF, IDE, crce, SRR,R1,R2,
-    IDB,ERROR_FLAG_STATE, ERROR_DELIMITER,
-    OVERLOAD_DELIMITER, OVERLOAD_FLAG_STATE, ARBITRATION_LOSS_STATE} STATE_DEC, STATE_ENC;
-
     //Decoder Variáveis BEGIN
     unsigned int count_decoder = 0;
     bool ERROR_FLAG = false;
     bool BED_FLAG = false;
-    bool BUS_IDLE_FLAG = true;
     bool ACK_FLAG = false;
     bool SoF_FLAG = false;
     bool OVERLOAD_FLAG = false;
@@ -951,6 +923,155 @@
 //Decoder END
 
 
+
+//Bit_Timing_Module BEGIN
+    #define CAN_RX_PIN 11
+    #define CAN_TX_PIN 10
+    SoftwareSerial mySerial(CAN_RX_PIN,CAN_TX_PIN);
+
+    //Bit_Timing Defines
+    #define TQ 100000  //Tempo em Microssegundos
+    #define L_SYNC 1
+    #define L_PROP 1
+    #define L_PH_SEG1 2
+    #define L_PH_SEG2 3
+    #define SJW 1
+    /// Tamanhos de L_SEG1 E L_SEG2, saídas do módulo TQ_Configurator
+    #define L_SEG1 (L_PROP+L_PH_SEG1)
+    #define L_SEG2 L_PH_SEG2
+
+    char *crc;
+
+    //Variáveis Globais BEGIN
+        //Bit_Timing Variáveis
+    enum bt_estados {SYNC = 0,SEG1 = 1,SEG2 = 2} STATE_BT;
+    unsigned int count_bt = 0;
+    int Ph_Error = 0;
+    volatile bool Plot_Tq = false;
+    volatile bool Sample_Point = false;
+    volatile bool Writing_Point = false;
+    volatile bool Soft_Sync = false;
+    volatile bool Hard_Sync = false;
+    volatile bool SS_Flag = false;
+    volatile char last_bit_bt = '\0';
+
+
+
+    void func_sample_point(){
+        bit_stuffing_decoder(CAN_RX);
+        //Serial.print("BIT_TO_SAVE: ");
+        //Serial.println(BIT_TO_SAVE);
+        // Serial.print("capture: ");
+        //Serial.println(CAPTURE);
+        UC_DECODER();
+     //   check_arbitration();//funçao q checa arbitração
+    }
+
+
+
+    //Edge Detector - Bit Timing
+    void Edge_Detector(){
+        if(BUS_IDLE_FLAG && CAN_RX == '0'){//Hard_Sync
+            HS_ISR();
+        }
+        else if (last_bit_bt == '1' && CAN_RX == '0'){//Soft_Sync
+            SS_ISR();
+        }
+        last_bit_bt = CAN_RX;
+    }
+
+    void SS_ISR() {
+        if(STATE_BT == SEG1){
+            Soft_Sync = true;
+            Ph_Error = min(count_bt,SJW);
+        }  
+        else if(STATE_BT == SEG2){
+            Ph_Error = min(((L_SEG2 + 1)-count_bt),SJW);
+            if(L_SEG2 - Ph_Error <= count_bt){
+                SS_Flag = true;
+            }
+            Soft_Sync = true;
+        }
+    }
+
+    void Inc_Count(){
+        count_bt++;
+        Plot_Tq = !Plot_Tq; 
+    }
+
+    void UC_BT(/*SJW,CAN_RX,TQ,L_PROP,L_SYNC,L_SEG1,L_SEG2*/){
+        Edge_Detector();
+        Inc_Count();
+        //print_state(); // função para debugar q n foi adicionada ao all
+        Writing_Point = false;
+        Sample_Point = false;
+
+        switch(STATE_BT){
+            case SYNC:
+            //Serial.println("SYNC");
+            Writing_Point = true;
+           // func_writing_point();
+            if(count_bt >= L_SYNC){
+                count_bt = 0; //0 ou 1 ?
+                STATE_BT = SEG1;
+            }
+            break;
+            
+            case SEG1:
+            //Serial.println("SEG1");
+            if(count_bt == (L_SEG1 +Ph_Error)){
+                STATE_BT = SEG2;
+                Sample_Point = true;
+             if(mySerial.available() > 0 ){
+               CAN_RX = mySerial.read();//Capturar do barramento
+                Serial.print("CAN_RX = ");
+                Serial.println(CAN_RX);
+                func_sample_point();
+             }
+                else{
+                CAN_RX = '\0';
+                }
+                count_bt = 0;
+                Ph_Error = 0;
+            }
+            
+            break;
+            
+            case SEG2:
+            //Serial.println("SEG2");
+            if(count_bt == (L_SEG2 - Ph_Error) || SS_Flag){
+                if(SS_Flag){
+                STATE_BT = SEG1;
+                }
+                else{
+                STATE_BT = SYNC;
+                }
+                SS_Flag = false;
+                count_bt = 0;
+                Ph_Error = 0;
+            }
+            break;
+    }
+        Hard_Sync = false;
+        Soft_Sync = false;
+    }
+
+    void HS_ISR() {
+    Hard_Sync = true;
+    Timer1.start(); //reinicia timerone
+    Timer1.attachInterrupt(UC_BT,TQ);//reinicia timerone
+    count_bt = 0;
+    STATE_BT = SYNC;//talvez antes da reinicialização do timerone, verificar
+    Writing_Point = true;
+    //Serial.println("Hard_Sync");
+    }
+
+
+//Bit_Timing_Module END
+
+
+
+
 //Setup BEGIN
     void setup() {
     Serial.begin(115200);
@@ -964,10 +1085,12 @@
     count_bt = 0;//contador do Bit Timing
 
     //Comunicação Serial
+     //Comunicação Serial
     pinMode(CAN_RX_PIN,INPUT);
     pinMode(CAN_TX_PIN,OUTPUT);
+    mySerial.begin(115200);
     
-        //  Serial.println("Digite 'b' para base frame e 'e' para extended frame" );
+    Serial.println("Setup OK" );
     }
 //Setup END
 
