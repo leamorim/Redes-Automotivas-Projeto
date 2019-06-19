@@ -15,6 +15,7 @@
     char CAN_TX = '\0';
     char CAN_RX = '\0';
     bool BUS_IDLE_FLAG = true;
+    String Frame_dec = "";
 
   enum end_dec_estados {BUS_IDLE = 0,SoF = 1,ID_A = 2,RTR_SRR = 3,IDE_0 = 4,R0 = 5, DLC = 6,
     DATA = 7, CRC_READ = 8,CRC_DELIMITER = 9, ACK_SLOT = 10, ACK_DELIMITER, EoF,
@@ -880,7 +881,9 @@
             {
                 if(count_decoder == L_INTERFRAME_SPACING)
                     {
-                        print_frame(Data_Flag,Extended_Flag,Vetor_ID_A,Vetor_ID_B,Value_DLC,Vetor_DATA,Vetor_CRC);
+                        //print_frame(Data_Flag,Extended_Flag,Vetor_ID_A,Vetor_ID_B,Value_DLC,Vetor_DATA,Vetor_CRC);
+                        Serial.print("FRAME: ");
+                        Serial.println(Frame_dec);
                         Serial.println("INTERFRAME_SPACING");
                         BUS_IDLE_FLAG  = true;
                         BED_FLAG = false;
@@ -1112,8 +1115,9 @@
                 Sample_Point = true;
              if(mySerial.available() > 0 ){
                CAN_RX = mySerial.read();//Capturar do barramento
-                Serial.print("CAN_RX = ");
-                Serial.println(CAN_RX);
+                //Serial.print("CAN_RX = ");
+                //Serial.println(CAN_RX);
+                Frame_dec.concat(CAN_RX);
                 func_sample_point();
              }
                 else{

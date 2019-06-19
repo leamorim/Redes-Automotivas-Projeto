@@ -71,10 +71,10 @@
   enum send_frame_states {FORMAT_SEND = 0, TYPE_SEND, ID_A_SEND, ID_B_SEND, DATA_SEND, WAIT_SEND, DLC_SEND} STATE_SEND;
 
   //Variáveis para construção do frame -- BEGIN
-    char ID [12] = "";         //0x67E
+    char ID [13] = "";         //0x67E
     char idb [19] = "";        //0x3187A
-    char dlc[4] = "";          //8 
-    char data [64] = "";       //0xAAAAAAAAAAAAAAAA
+    char dlc[5] = "";          //8 
+    char data [65] = "";       //0xAAAAAAAAAAAAAAAA
 
     int DLC_L;
     int FF ; //FRAME FORMAT
@@ -261,9 +261,9 @@
         
         case DLC_SEND:
         if(Serial.available() > 0 ){
-          char input_dlc [4] = "";//entrada em Decimal
+          char input_dlc [5] = "";//entrada em Decimal
           String dlc_input = Serial.readStringUntil('\n');
-          dlc_input.toCharArray(input_dlc,4);
+          dlc_input.toCharArray(input_dlc,5);
           hex_to_bin(input_dlc,dlc);
           DLC_L = BinToDec(dlc,4);
             
@@ -307,9 +307,9 @@
 
         case DATA_SEND:
         if(Serial.available() > 0 ){
-          char data_input [16] = "";//entrada em hexadecimal
+          char data_input [17] = "";//entrada em hexadecimal
           String input = Serial.readStringUntil('\n');
-          input.toCharArray(data_input,16);
+          input.toCharArray(data_input,17);
           hex_to_bin(data_input,data);
           STATE_SEND = WAIT_SEND;
           FRAME_START = false;
@@ -493,13 +493,6 @@
         BS_FLAG = true;
         Frame[Ecount] = '0';
         Serial.print("SOF: ");
-        Serial.print("Loss_arbitr:");
-        Serial.print(ARBITRATION_LOSS);
-        Serial.print(" Ecount ");
-        Serial.print(Ecount);
-        Serial.print("frame[ec]");
-        Serial.println(Frame[Ecount]); 
-      // Serial.println(Frame[Ecount]);
         STATE_ENC = ID_A;
         
         break;
@@ -629,13 +622,20 @@
         else {
           Frame[Ecount] = '1';
           STATE_ENC = WAIT;
+          Serial.print("FRAME: ");
+          Serial.println(Frame);
+          Serial.println("FRAME PRINTER: ");
+          Frame_Printer(Frame,FF,FT,DLC_L);
+          free(Frame);
+          Serial.println("FRAME END");
         }
         Serial.print("INTERFRAME SPACING: ");
     //   Serial.println(Frame[Ecount]);
         break;
       case WAIT:
         Serial.println("FRAME END");
-        free(Frame);
+        
+ 
         STATE_ENC = WAIT;
         GET_FRAME = true;
         break;
@@ -644,10 +644,10 @@
           
         BIT_TO_WRITE = Frame[Ecount];
         
-        Serial.print("bit_to_w:");
-        Serial.print(BIT_TO_WRITE);
-        Serial.print(" frame[ec] ");
-        Serial.println(Frame[Ecount]);
+       // Serial.print("bit_to_w:");
+       // Serial.print(BIT_TO_WRITE);
+        //Serial.print(" frame[ec] ");
+        //Serial.println(Frame[Ecount]);
         Ecount++; 
         }
     }
@@ -675,10 +675,10 @@
       case ID_A:
         if(!ARBITRATION_LOSS){
           if(Ecount < 11){
-            Frame[Ecount] = ID[Ecount-1];
+            Frame[Ecount] = ID[Ecount];
           }
           else {
-            Frame[Ecount] = ID[Ecount-1];
+            Frame[Ecount] = ID[Ecount];
             STATE_ENC = RTR;
           }
         }
@@ -726,10 +726,10 @@
         break;
       case crce:
         if(Ecount < 33){
-          Frame[Ecount] = crc[Ecount - 19];
+          Frame[Ecount] = crc[Ecount - 18];
         }
         else {
-          Frame[Ecount] = crc[Ecount - 19];
+          Frame[Ecount] = crc[Ecount - 18];
           STATE_ENC = CRC_DELIMITER;
         }
     //      Serial.print("CRC: ");
@@ -782,25 +782,24 @@
         else {
           Frame[Ecount] = '1';
           STATE_ENC = WAIT;
+          Serial.print("FRAME: ");  
+          Serial.println(Frame);
+          Serial.println("FRAME PRINTER: ");
+          Frame_Printer(Frame,FF,FT,DLC_L);
+          free(Frame);
+          Serial.println("FRAME END");
         }
       //    Serial.print("INTERFRAME SPACING: ");
       //    Serial.println(Frame[Ecount]);
         break;
       case WAIT:
-        Serial.println("FRAME END");
-        Serial.println(Frame);
-        free(Frame);
+        
         STATE_ENC = WAIT;
         GET_FRAME = true;
         break;     
       }
-        if(!ARBITRATION_LOSS){ 
-          
+        if(!ARBITRATION_LOSS){    
         BIT_TO_WRITE = Frame[Ecount];
-        Serial.print("bit_to_w:");
-        Serial.print(BIT_TO_WRITE);
-        Serial.print(" frame[ec] ");
-        Serial.println(Frame[Ecount]);
         Ecount++; 
         }
     }
@@ -828,10 +827,10 @@
       case ID_A:        // 1 - 11 position
         if(!ARBITRATION_LOSS){
             if(Ecount < 11){
-              Frame[Ecount] = ID[Ecount-1];
+              Frame[Ecount] = ID[Ecount];
             }
             else {
-              Frame[Ecount] = ID[Ecount-1];
+              Frame[Ecount] = ID[Ecount];
               STATE_ENC = SRR;
             }
           }
@@ -985,14 +984,14 @@
         else {
           Frame[Ecount] = '1';
           STATE_ENC = WAIT;
+          Serial.print("FRAME: ");        
+          Serial.println(Frame);
+          free(Frame);
+          Serial.println("FRAME END");
         }
-    //    Serial.print("INTERFRAME SPACING: ");
-    //    Serial.println(Frame[Ecount]);
         break;
       case WAIT:
-        Serial.println("FRAME END");
-        Serial.println(Frame);
-        free(Frame);
+
         STATE_ENC = WAIT;
         GET_FRAME = true;
         break;     
@@ -1025,10 +1024,10 @@
       case ID_A:        // 1 - 11 position
         if(!ARBITRATION_LOSS){
           if(Ecount < 11){
-            Frame[Ecount] = ID[Ecount-1];
+            Frame[Ecount] = ID[Ecount];
           }
           else {
-            Frame[Ecount] = ID[Ecount-1];
+            Frame[Ecount] = ID[Ecount];
             STATE_ENC = SRR;
           }
         }
@@ -1170,13 +1169,13 @@
         else {
           Frame[Ecount] = '1';
           STATE_ENC = WAIT;
+          Serial.print("FRAME: ");  
+          Serial.println(Frame);
+          free(Frame);
+          Serial.println("FRAME END");
         }
-        Serial.print("INTERFRAME SPACING: ");
-        Serial.println(Frame[Ecount]);
         break;
       case WAIT:
-        Serial.println("FRAME END");
-        free(Frame);
         STATE_ENC = WAIT;
         GET_FRAME = true;
         break;     
@@ -1379,21 +1378,18 @@
         if(CAN_TX == '0'){//aqui que vai escrever no barramento, fazer
           mySerial.write(CAN_TX);
           //Serial.print(mySerial.write(CAN_TX));
-          Serial.print(" CAN_TX == ");
-          Serial.println(CAN_TX);
+         // Serial.print(" CAN_TX == ");
+         // Serial.println(CAN_TX);
         }
         else if(CAN_TX == '1'){
           mySerial.write(CAN_TX);
           //Serial.print(mySerial.write(CAN_TX));
-          Serial.print(" CAN_TX == ");
-          Serial.println(CAN_TX);
+          //Serial.print(" CAN_TX == ");
+          //Serial.println(CAN_TX);
         }   
 
         }
     }
-
-
-
 
     //Edge Detector - Bit Timing
     void Edge_Detector(){
