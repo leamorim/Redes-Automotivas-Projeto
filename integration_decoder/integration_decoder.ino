@@ -16,7 +16,7 @@
     char CAN_RX = '\0';
     bool BUS_IDLE_FLAG = true;
     String Frame_dec = "";
-
+    
   enum end_dec_estados {BUS_IDLE = 0,SoF = 1,ID_A = 2,RTR_SRR = 3,IDE_0 = 4,R0 = 5, DLC = 6,
     DATA = 7, CRC_READ = 8,CRC_DELIMITER = 9, ACK_SLOT = 10, ACK_DELIMITER, EoF,
     INTERFRAME_SPACING,IDE_1, ID_B,RTR, R1R0, STATE_ERROR,
@@ -152,65 +152,64 @@
 
     void print_frame(char RTR, char IDE, char *ID_A, char *ID_B,unsigned int Value_DLC, char *Data, char *CRC)
     {
-    long int Value;
-    int i = 0;
+        long int Value;
+        int i = 0;
 
-    if(IDE == '1')
-    {
-        Serial.println("SRR = 1");
-        Serial.println("IDE = 1");
-        Serial.println("EXTENDED FRAME");
-
-        Value = BinToDec(ID_A, 11);
-        Serial.print("ID_A: 0x0");
-        Serial.println(Value,HEX);
-
-        Serial.print("ID_B: 0x0");
-        BinToHex('0','0',ID_B[0],ID_B[1]);
-        for(i = 0; i < 16; i += 4)
+        if(IDE == '1')
         {
-        BinToHex(ID_B[i+2],ID_B[i+3],ID_B[i+4],ID_B[i+5]);
+            Serial.println("SRR = 1");
+            Serial.println("IDE = 1");
+            Serial.println("EXTENDED FRAME");
+
+            Value = BinToDec(ID_A, 11);
+            Serial.print("ID_A: 0x0");
+            Serial.println(Value,HEX);
+
+            Serial.print("ID_B: 0x0");
+            BinToHex('0','0',ID_B[0],ID_B[1]);
+            for(i = 0; i < 16; i += 4)
+            {
+            BinToHex(ID_B[i+2],ID_B[i+3],ID_B[i+4],ID_B[i+5]);
+            }
+            Serial.println("");
         }
-        Serial.println("");
-    }
-    else if(IDE == '0')
-    {
-        Serial.println("IDE = 0");
-        Serial.println("BASE FRAME");
-        Value = BinToDec(ID_A, 11);
-        Serial.print("ID_A: 0x0");
-        Serial.println(Value,HEX);
-    }
-
-    if(RTR == '0')
-    {
-        Serial.println("RTR = 1");
-        Serial.println("REMOTE FRAME");
-        Serial.print("DLC: ");
-        Serial.print(Value_DLC);
-
-        Serial.println("");
-        Serial.println("DATA: 0x00");
-        
-    }
-    else if(RTR == '1')
-    {
-        Serial.println("RTR = 0");
-        Serial.println("DATA FRAME");
-        Serial.print("DATA: 0x");
-
-        for(i = 0; i < ((Value_DLC*8));  i += 4)
+        else if(IDE == '0')
         {
-        BinToHex(Data[i],Data[i+1],Data[i+2],Data[i+3]);
-        
+            Serial.println("IDE = 0");
+            Serial.println("BASE FRAME");
+            Value = BinToDec(ID_A, 11);
+            Serial.print("ID_A: 0x0");
+            Serial.println(Value,HEX);
         }
-        Serial.println("");
-    }
-    
-    Value = BinToDec(CRC, L_CRC);
-    Serial.print("CRC:");
-    Serial.println(CRC); //HEX ???
-    
+
+        if(RTR == '0')
+        {
+            Serial.println("RTR = 1");
+            Serial.println("REMOTE FRAME");
+            Serial.print("DLC: ");
+            Serial.print(Value_DLC);
+
+            Serial.println("");
+            Serial.println("DATA: 0x00");
+            
+        }
+        else if(RTR == '1')
+        {
+            Serial.println("RTR = 0");
+            Serial.println("DATA FRAME");
+            Serial.print("DATA: 0x");
+
+            for(i = 0; i < ((Value_DLC*8));  i += 4)
+            {
+            BinToHex(Data[i],Data[i+1],Data[i+2],Data[i+3]);
+            
+            }
+            Serial.println("");
+        }
+        
+        Value = BinToDec(CRC, L_CRC);
+        Serial.print("CRC:");
+        Serial.println(CRC); //HEX ???
     }
 
 //CRC_Module BEGIN
@@ -1016,8 +1015,8 @@
 
 
 //Bit_Timing_Module BEGIN
-    #define CAN_RX_PIN 11
-    #define CAN_TX_PIN 10
+    #define CAN_RX_PIN 7
+    #define CAN_TX_PIN 8
     SoftwareSerial mySerial(CAN_RX_PIN,CAN_TX_PIN);
 
     //Bit_Timing Defines
@@ -1113,7 +1112,8 @@
             if(count_bt == (L_SEG1 +Ph_Error)){
                 STATE_BT = SEG2;
                 Sample_Point = true;
-             if(mySerial.available() > 0 ){
+
+              if(mySerial.available() > 0 ){
                CAN_RX = mySerial.read();//Capturar do barramento
                 //Serial.print("CAN_RX = ");
                 //Serial.println(CAN_RX);

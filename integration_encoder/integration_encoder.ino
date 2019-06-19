@@ -670,7 +670,7 @@
         STATE_ENC = ID_A;
         Frame[Ecount] = '0';
         Serial.print("SOF: ");
-      //      Serial.println(Frame[Ecount]);
+            Serial.println(Frame[Ecount]);
         break;
       case ID_A:
         if(!ARBITRATION_LOSS){
@@ -685,8 +685,8 @@
         else{
           STATE_ENC = ARBITRATION_LOSS_STATE;
         }
-      //      Serial.print("IDA: ");
-    //      Serial.println(Frame[Ecount]);
+            Serial.print("IDA: ");
+          Serial.println(Frame[Ecount]);
           break;
       case RTR:
         if(!ARBITRATION_LOSS){
@@ -696,20 +696,20 @@
         else{
           STATE_ENC = ARBITRATION_LOSS_STATE;
         }
-    //       Serial.print("RTR: ");
-    //       Serial.println(Frame[Ecount]);
+           Serial.print("RTR: ");
+           Serial.println(Frame[Ecount]);
           break;
       case IDE:
         Frame[Ecount] = '0';  // 13 position
         STATE_ENC = R0;
-    //    Serial.print("IDE: ");
-    //    Serial.println(Frame[Ecount]);
+        Serial.print("IDE: ");
+        Serial.println(Frame[Ecount]);
         break;
       case R0:
         Frame[Ecount] = '0';   // 14 position
         STATE_ENC = DLC;
-      //     Serial.print("R0: ");
-      //    Serial.println(Frame[Ecount]);
+           Serial.print("R0: ");
+          Serial.println(Frame[Ecount]);
         break;
       case DLC:
         if(Ecount < 18){
@@ -721,26 +721,26 @@
           STATE_ENC = crce;
         }
 
-    //      Serial.print("DLC: ");
-    //      Serial.println(Frame[Ecount]);
+          Serial.print("DLC: ");
+          Serial.println(Frame[Ecount]);
         break;
       case crce:
         if(Ecount < 33){
-          Frame[Ecount] = crc[Ecount - 18];
+          Frame[Ecount] = crc[Ecount - 19];
         }
         else {
-          Frame[Ecount] = crc[Ecount - 18];
+          Frame[Ecount] = crc[Ecount - 19];
           STATE_ENC = CRC_DELIMITER;
         }
-    //      Serial.print("CRC: ");
-    //      Serial.println(Frame[Ecount]);
+          Serial.print("CRC: ");
+          Serial.println(Frame[Ecount]);
         break;
       case CRC_DELIMITER:
         BS_FLAG = false;
         STATE_ENC = ACK_SLOT;
         Frame[Ecount] = '1';
-    //      Serial.print("CRC_DELIMITER: ");
-    //      Serial.println(Frame[Ecount]);
+          Serial.print("CRC_DELIMITER: ");
+          Serial.println(Frame[Ecount]);
         break;
       case ACK_SLOT:
         ACK_SLOT_FLAG = true;
@@ -752,15 +752,15 @@
         else{
           STATE_ENC = SOF;
         }
-    //     Serial.print("ACK_SLOT: ");
-    //     Serial.println(Frame[Ecount]);
+         Serial.print("ACK_SLOT: ");
+         Serial.println(Frame[Ecount]);
         break;
       case ACK_DELIMITER:
         BS_FLAG = false;
         STATE_ENC = EoF;
         Frame[Ecount] = '1';
-    //     Serial.println("ACK_DELIMITER");
-    //     Serial.println(Frame[Ecount]);
+         Serial.println("ACK_DELIMITER");
+         Serial.println(Frame[Ecount]);
         break;
       case EoF:
         BS_FLAG = false;
@@ -772,7 +772,7 @@
           STATE_ENC = INTERFRAME_SPACING;
         }
         Serial.print("EOF: ");
-    //     Serial.println(Frame[Ecount]);
+         Serial.println(Frame[Ecount]);
         break;
       case INTERFRAME_SPACING:
         BS_FLAG = false;
@@ -789,8 +789,8 @@
           free(Frame);
           Serial.println("FRAME END");
         }
-      //    Serial.print("INTERFRAME SPACING: ");
-      //    Serial.println(Frame[Ecount]);
+          Serial.print("INTERFRAME SPACING: ");
+          Serial.println(Frame[Ecount]);
         break;
       case WAIT:
         
@@ -1339,8 +1339,8 @@
 
 //Bit_Timing_Module BEGIN
 
-    #define CAN_RX_PIN 11
-    #define CAN_TX_PIN 10
+    #define CAN_RX_PIN 7
+    #define CAN_TX_PIN 8
     SoftwareSerial mySerial(CAN_RX_PIN,CAN_TX_PIN);
 
     //Bit_Timing Defines
@@ -1505,6 +1505,8 @@
     count_bt = 0;//contador do Bit Timing
     //  attachInterrupt(0, HS_ISR, FALLING);
     //  attachInterrupt(1, SS_ISR, FALLING);
+    pinMode(CAN_TX_PIN,OUTPUT);
+    pinMode(CAN_RX_PIN,INPUT);
 
     //Comunicação Serial
     //  pinMode(CAN_RX_PIN,INPUT);
