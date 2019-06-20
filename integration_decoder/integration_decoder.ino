@@ -1,5 +1,5 @@
     #include <TimerOne.h>
-    #include <SoftwareSerial.h>
+ //   #include <SoftwareSerial.h>
 
     #define L_BIT 1
     #define L_ID_A 11
@@ -12,9 +12,9 @@
     #define L_INTERFRAME_SPACING 3
 
 
-    volatile char CAN_TX = '\0';
-    volatile char CAN_RX = '\0';
-    volatile bool BUS_IDLE_FLAG = true;
+    char CAN_TX = '\0';
+    char CAN_RX = '\0';
+    bool BUS_IDLE_FLAG = true;
     String Frame_dec = "";
     String Frame_decnbs = "";
     
@@ -256,29 +256,29 @@
 
     // Bit Stuffing Decoder BEGIN
 
-    volatile unsigned int count_bs_encoder = 0;
-    volatile unsigned int count_bs_decoder = 0;
-    volatile char last_bit_dec;
+    unsigned int count_bs_encoder = 0;
+    unsigned int count_bs_decoder = 0;
+    char last_bit_dec;
 
-    volatile char BIT_TO_SAVE = '\0';
-    volatile bool CAPTURE,BSE_FLAG, BSD_FLAG = true; 
+    char BIT_TO_SAVE = '\0';
+    bool CAPTURE,BSE_FLAG, BSD_FLAG = true; 
     // Bit Stuffing Decoder END
 
 
     //Decoder Variáveis BEGIN
-    volatile unsigned int count_decoder = 0;
-    volatile bool ERROR_FLAG = false;
-    volatile bool BED_FLAG = false;
-    volatile bool ACK_FLAG = false;
+    unsigned int count_decoder = 0;
+    bool ERROR_FLAG = false;
+    bool BED_FLAG = false;
+    bool ACK_FLAG = false;
     //bool SoF_FLAG = false;
-    volatile bool OVERLOAD_FLAG = false;
-    volatile bool ID_B_FLAG = true;
-    volatile bool CRC_FLAG = true;
-    volatile unsigned int aux_count = 0;
+    bool OVERLOAD_FLAG = false;
+    bool ID_B_FLAG = true;
+    bool CRC_FLAG = true;
+    unsigned int aux_count = 0;
 
-    volatile unsigned int Data_Flag = 0;
-    volatile unsigned int Remote_Flag = 0;
-    volatile unsigned int Extended_Flag = 0; // 0-> Base || 1 -> Extended
+    unsigned int Data_Flag = 0;
+    unsigned int Remote_Flag = 0;
+    unsigned int Extended_Flag = 0; // 0-> Base || 1 -> Extended
 
     char Vetor_ID_A[11];
     char Vetor_DLC[4];
@@ -1054,9 +1054,9 @@
 
 
 //Bit_Timing_Module BEGIN
-    #define CAN_RX_PIN 7
-    #define CAN_TX_PIN 8
-    SoftwareSerial mySerial(CAN_RX_PIN,CAN_TX_PIN);
+    #define CAN_RX_PIN 9
+    #define CAN_TX_PIN 10
+//    SoftwareSerial mySerial(CAN_RX_PIN,CAN_TX_PIN);
 
     //Bit_Timing Defines
     #define TQ 100000  //Tempo em Microssegundos
@@ -1156,15 +1156,13 @@
                 STATE_BT = SEG2;
                 Sample_Point = true;
 
-              if(mySerial.available() > 0 ){
-               CAN_RX = mySerial.read();//Capturar do barramento
-                //Serial.print("CAN_RX = ");
-                //Serial.println(CAN_RX);
-                Frame_dec.concat(CAN_RX);
-                func_sample_point();
-             }
+                if(digitalRead(CAN_RX_PIN) == HIGH){
+                    CAN_RX = '1';
+                    func_sample_point();
+                }
                 else{
-                CAN_RX = '\0';
+                    CAN_RX = '0';
+                    func_sample_point();
                 }
                 count_bt = 0;
                 Ph_Error = 0;
@@ -1223,7 +1221,7 @@
      //Comunicação Serial
     pinMode(CAN_RX_PIN,INPUT);
     pinMode(CAN_TX_PIN,OUTPUT);
-    mySerial.begin(115200);
+ //   mySerial.begin(115200);
     
     Serial.println("Setup OK" );
     }

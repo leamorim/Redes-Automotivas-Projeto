@@ -1,5 +1,5 @@
   #include <TimerOne.h>
-  #include <SoftwareSerial.h>
+//  #include <SoftwareSerial.h>
   
   volatile bool BUS_IDLE_FLAG = true;
   volatile char CAN_TX = '\0';
@@ -374,9 +374,10 @@
             CAN_TX = BIT_TO_WRITE;
             STATE_BS_ENC = INACTIVE;
             count_encoder = 0;
+            SEND_BIT = true;
           }
           else{
-              if(count_encoder < 5){
+              if(count_encoder < 4){
                   if(BIT_TO_WRITE != last_bit_enc){
                       //Serial.println("diferente");
                       count_encoder = 1;
@@ -394,23 +395,26 @@
                   }
                   STATE_BS_ENC = COUNTING;
               }
-              else{ //sexto bit aqui
+              else{ //quinto bit aqui
                   //STATE_BS_ENC_ENC = BIT_STUFFED;//dá pra criar um novo estado mas acho q dá pra deixar tudo nesse estado
                 // Serial.println("BIT STUFFED");
                   if(!BS_FLAG){
                     STATE_BS_ENC = INACTIVE;
                   }
                   else{
-                      SEND_BIT = false;
-                      count_encoder = 1;
-                      if(BIT_TO_WRITE == '0'){
-                          CAN_TX = '1';
+                      SEND_BIT = true;
+                      if(last_bit_enc == BIT_TO_WRITE){
+                         CAN_TX = BIT_TO_WRITE;
+                         last_bit_enc = BIT_TO_WRITE;
+                         STATE_BS_ENC = BIT_STUFFED;
+                         last_bit_enc = BIT_TO_WRITE;     
+                         count_encoder++;
                       }
-                      else if(BIT_TO_WRITE == '1'){
-                          CAN_TX = '0';
-                      }
-                      STATE_BS_ENC = BIT_STUFFED;
-                      last_bit_enc = BIT_TO_WRITE;
+                      else{
+                        count_encoder = 1;
+                        CAN_TX = BIT_TO_WRITE;
+                        last_bit_enc = BIT_TO_WRITE;
+                       }
                     }
                   }
             }
@@ -418,9 +422,20 @@
 
       case BIT_STUFFED:
           
-          CAN_TX = last_bit_enc;
+          if(last_bit_enc == '0'){
+            CAN_TX = '1';
+            last_bit_enc = '1';
+          }
+          else if(last_bit_enc == '1'){
+            CAN_TX = '0';
+            last_bit_enc = '0';
+          }
+
+          Serial.print("Bit_stuffed");
+          
           count_encoder = 1;
-          SEND_BIT = true;
+          SEND_BIT = false;
+          
           if(BS_FLAG){
               STATE_BS_ENC = COUNTING;
           }
@@ -1322,9 +1337,9 @@
 
 //Bit_Timing_Module BEGIN
 
-    #define CAN_RX_PIN 7
-    #define CAN_TX_PIN 8
-    SoftwareSerial mySerial(CAN_RX_PIN,CAN_TX_PIN);
+    #define CAN_RX_PIN 9
+    #define CAN_TX_PIN 10
+  //  SoftwareSerial mySerial(CAN_RX_PIN,CAN_TX_PIN);
 
     //Bit_Timing Defines
     #define TQ 100000  //Tempo em Microssegundos
@@ -1360,17 +1375,19 @@
           bit_stuffing_encoder();
           
         if(CAN_TX == '0'){//aqui que vai escrever no barramento, fazer
-          mySerial.write(CAN_TX);
+         digitalWrite(CAN_TX_PIN,HIGH);
+         // mySerial.write(CAN_TX);
           //Serial.print(mySerial.write(CAN_TX));
-         // Serial.print(" CAN_TX == ");
-         // Serial.println(CAN_TX);
+          Serial.print(" CAN_TX == ");
+          Serial.println(CAN_TX);
          Frame_enc.concat(CAN_TX);
         }
         else if(CAN_TX == '1'){
-          mySerial.write(CAN_TX);
+          digitalWrite(CAN_TX_PIN,LOW);
+         // mySerial.write(CAN_TX);
           //Serial.print(mySerial.write(CAN_TX));
-          //Serial.print(" CAN_TX == ");
-          //Serial.println(CAN_TX);
+          Serial.print(" CAN_TX == ");
+         Serial.println(CAN_TX);
           Frame_enc.concat(CAN_TX);
         }   
 
@@ -1497,7 +1514,7 @@
     //Comunicação Serial
     //  pinMode(CAN_RX_PIN,INPUT);
     //  pinMode(CAN_TX_PIN,OUTPUT);
-     mySerial.begin(115200);
+     //mySerial.begin(115200);
     Serial.println("Digite 'b' para base frame e 'e' para extended frame" );
   }
 //Setup END
