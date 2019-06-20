@@ -5,6 +5,7 @@
   char CAN_TX = '\0';
   char CAN_RX = '\0';
   bool GET_FRAME = true;
+  String Frame_enc = "";
 
   enum end_dec_estados {BUS_IDLE = 0,SoF = 1,ID_A = 2,RTR_SRR = 3,IDE_0 = 4,R0 = 5, DLC = 6,
     DATA = 7, CRC_READ = 8,CRC_DELIMITER = 9, ACK_SLOT = 10, ACK_DELIMITER, EoF,
@@ -250,7 +251,7 @@
           Serial.print("DLC == ");
           Serial.println(dlc_input);
 
-          if(DLC_L > 8){//isso aqui eh possível acontecer ?
+          if(DLC_L > 8){
             DLC_L = 8;
             dlc[0] = '1';
             dlc[1] = '0';
@@ -308,11 +309,11 @@
             if(GET_FRAME){
               STATE_SEND = FORMAT_SEND;
               Serial.println("Digite 'b' para base frame e 'e' para extended frame" );
-            //  ID [12] = "";         
-          //   idb [19] = ""; 
-            //  dlc [4] = "";  
-            //  data [64] = "";
-            //  DLC_L = 0;
+              ID [0] = '\0';         
+              idb [0] = '\0'; 
+              dlc [0] = '\0';  
+              data [0] = '\0';
+              DLC_L = 0;
             }
         break;
     }
@@ -608,11 +609,13 @@
         else {
           Frame[Ecount] = '1';
           STATE_ENC = WAIT;
-          Serial.print("FRAME: ");
-          Serial.println(Frame);
+          Serial.print("FRAME ENC: ");
+          Serial.println(Frame_enc);
+
           Serial.println("FRAME PRINTER: ");
-      ///    Frame_Printer(Frame,FF,FT,DLC_L);
+          Frame_Printer(Frame,FF,FT,DLC_L);
           free(Frame);
+          //Frame = NULL;
           Serial.println("FRAME END");
         }
         Serial.print("INTERFRAME SPACING: ");
@@ -957,6 +960,7 @@
     //    Serial.println(Frame[Ecount]);
         break;
       case INTERFRAME_SPACING:    //64 (+DLC_L) - 66 (+DLC_L) Position
+        Serial.println("INTERFRAME");
         BS_FLAG = false;
         if(Ecount < 66 + (DLC_L*8)){
           Frame[Ecount] = '1';
@@ -1013,8 +1017,8 @@
         else{
           STATE_ENC = ARBITRATION_LOSS_STATE;
         }
-          Serial.print("IDA: ");
-          Serial.println(Frame[Ecount]);
+        //  Serial.print("IDA: ");
+        //  Serial.println(Frame[Ecount]);
           break;
       case SRR:
         if(!ARBITRATION_LOSS){
@@ -1024,8 +1028,8 @@
         else{
           STATE_ENC = ARBITRATION_LOSS_STATE;
         }
-          Serial.print("RTR: ");
-          Serial.println(Frame[Ecount]);
+         // Serial.print("RTR: ");
+         // Serial.println(Frame[Ecount]);
           break;
       case IDE:
         if(!ARBITRATION_LOSS){
@@ -1035,8 +1039,8 @@
         else{
           STATE_ENC = ARBITRATION_LOSS_STATE;
         }
-          Serial.print("IDE: ");
-          Serial.println(Frame[Ecount]);
+          //Serial.print("IDE: ");
+          //Serial.println(Frame[Ecount]);
           break;
       case IDB:
         if(!ARBITRATION_LOSS){
@@ -1347,6 +1351,7 @@
     volatile char last_bit_bt = '\0';
 
 
+
     
     void func_writing_point(){
         if(!GET_FRAME){
@@ -1359,12 +1364,14 @@
           //Serial.print(mySerial.write(CAN_TX));
          // Serial.print(" CAN_TX == ");
          // Serial.println(CAN_TX);
+         Frame_enc.concat(CAN_TX);
         }
         else if(CAN_TX == '1'){
           mySerial.write(CAN_TX);
           //Serial.print(mySerial.write(CAN_TX));
           //Serial.print(" CAN_TX == ");
           //Serial.println(CAN_TX);
+          Frame_enc.concat(CAN_TX);
         }   
 
         }

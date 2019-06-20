@@ -16,6 +16,7 @@
     char CAN_RX = '\0';
     bool BUS_IDLE_FLAG = true;
     String Frame_dec = "";
+    String Frame_decnbs = "";
     
   enum end_dec_estados {BUS_IDLE = 0,SoF = 1,ID_A = 2,RTR_SRR = 3,IDE_0 = 4,R0 = 5, DLC = 6,
     DATA = 7, CRC_READ = 8,CRC_DELIMITER = 9, ACK_SLOT = 10, ACK_DELIMITER, EoF,
@@ -182,7 +183,7 @@
             Serial.println(Value,HEX);
         }
 
-        if(RTR == '0')
+        if(RTR == '1')
         {
             Serial.println("RTR = 1");
             Serial.println("REMOTE FRAME");
@@ -193,7 +194,7 @@
             Serial.println("DATA: 0x00");
             
         }
-        else if(RTR == '1')
+        else if(RTR == '0')
         {
             Serial.println("RTR = 0");
             Serial.println("DATA FRAME");
@@ -657,7 +658,7 @@
                 Value_DLC = (Value_DLC > 8) ? 8 : Value_DLC;  
                 Serial.print("DLC: ");  
                 Serial.print(Value_DLC);
-                Serial.println("byte");
+                Serial.println("bytes");
 
                 if(Data_Flag == 1 && Extended_Flag == 0)
                 {         
@@ -813,6 +814,10 @@
                 {
                 //CRC Checked = CRC_READ
                 //Concatenar campos
+                Serial.print("VETOR FRAME: ");
+                Serial.println(Vetor_Frame);
+                Serial.print("STRLEN: ");
+                Serial.println(strlen(Vetor_Frame));
                 Resultado_CRC = MakeCRC(Vetor_Frame);
                 
                 for(int j = 0; j < 15; j++)
@@ -838,7 +843,7 @@
                 BSD_FLAG = false;
                 if(BIT_TO_SAVE == '1')
                 { 
-                    Serial.println("ACK_DELIMITER");
+                    Serial.println("ACK_DELIMITER bts 1");
                     count_decoder  = 0;
                     STATE_DEC = EoF;
                 }
@@ -853,9 +858,12 @@
             break;
 
             case EoF:
-                
+            Serial.print("Eof  entrada");
+            Serial.println(BIT_TO_SAVE);
+
             if(BIT_TO_SAVE == '1')
             {
+                Serial.println("DEPOIS DO IF EOF");
                 if(count_decoder == L_EOF)
                 {
                 
@@ -867,27 +875,58 @@
             }
             else
             {
-            count_decoder = 0;
-            STATE_DEC = FORMAT_ERROR;
+                Serial.println("Else Eof");
+                count_decoder = 0;
+                STATE_DEC = FORMAT_ERROR;
             }
             
             break;
 
             case INTERFRAME_SPACING:
-                //Serial.print(BIT_TO_SAVE);
+                Serial.println(BIT_TO_SAVE);
                 
             if(BIT_TO_SAVE == '1')
             {
                 if(count_decoder == L_INTERFRAME_SPACING)
                     {
                         //print_frame(Data_Flag,Extended_Flag,Vetor_ID_A,Vetor_ID_B,Value_DLC,Vetor_DATA,Vetor_CRC);
-                        Serial.print("FRAME: ");
+                        Serial.print("FRAME COM BS: ");
                         Serial.println(Frame_dec);
+                        Serial.print("FRAME SEM BS: ");
+                        Serial.println(Frame_decnbs);
                         Serial.println("INTERFRAME_SPACING");
                         BUS_IDLE_FLAG  = true;
                         BED_FLAG = false;
                         count_decoder  = 0;
                         STATE_DEC = BUS_IDLE;
+                        Frame_dec = "";
+                        ERROR_FLAG = false;
+                        BED_FLAG = false;
+                        ACK_FLAG = false;
+                        OVERLOAD_FLAG = false;
+                        ID_B_FLAG = true;
+                        CRC_FLAG = true;
+                        aux_count = 0;
+                        Data_Flag = 0;
+                        Remote_Flag = 0;
+                        Extended_Flag = 0; // 0-> Base || 1 -> Extended
+                        count_frame = 0;
+
+                        Value_ID_A = 0;
+                        Value_DLC = 0;
+                        Value_ID_B = 0;
+                        Value_CRC = 0;
+                        Vetor_CRC[0] = '\0';
+                        free(Resultado_CRC);
+                        //Resultado_CRC = NULL;
+                        for(int i = 0; i<133;i++){
+                            Vetor_Frame[i] = '\0';
+                        }
+
+                        error_count = 0;
+                        error_12 = false;
+                        count_6_12 = 0;
+                        OVERLOAD_FLAG_1 = false;
                     }
             }
             else if(BIT_TO_SAVE == '0')
@@ -1050,6 +1089,10 @@
     void func_sample_point(){
         bit_stuffing_decoder(CAN_RX);
         //Serial.print("BIT_TO_SAVE: ");
+        if(CAPTURE){
+            Frame_decnbs.concat(CAN_RX);
+        }
+            Frame_dec.concat(CAN_RX);
         //Serial.println(BIT_TO_SAVE);
         // Serial.print("capture: ");
         //Serial.println(CAPTURE);
