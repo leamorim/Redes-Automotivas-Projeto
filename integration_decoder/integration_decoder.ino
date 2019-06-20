@@ -12,9 +12,9 @@
     #define L_INTERFRAME_SPACING 3
 
 
-    char CAN_TX = '\0';
-    char CAN_RX = '\0';
-    bool BUS_IDLE_FLAG = true;
+    volatile char CAN_TX = '\0';
+    volatile char CAN_RX = '\0';
+    volatile bool BUS_IDLE_FLAG = true;
     String Frame_dec = "";
     String Frame_decnbs = "";
     
@@ -256,29 +256,29 @@
 
     // Bit Stuffing Decoder BEGIN
 
-    unsigned int count_bs_encoder = 0;
-    unsigned int count_bs_decoder = 0;
-    char last_bit_dec;
+    volatile unsigned int count_bs_encoder = 0;
+    volatile unsigned int count_bs_decoder = 0;
+    volatile char last_bit_dec;
 
-    char BIT_TO_SAVE = '\0';
-    bool CAPTURE,BSE_FLAG, BSD_FLAG = true; 
+    volatile char BIT_TO_SAVE = '\0';
+    volatile bool CAPTURE,BSE_FLAG, BSD_FLAG = true; 
     // Bit Stuffing Decoder END
 
 
     //Decoder Variáveis BEGIN
-    unsigned int count_decoder = 0;
-    bool ERROR_FLAG = false;
-    bool BED_FLAG = false;
-    bool ACK_FLAG = false;
+    volatile unsigned int count_decoder = 0;
+    volatile bool ERROR_FLAG = false;
+    volatile bool BED_FLAG = false;
+    volatile bool ACK_FLAG = false;
     //bool SoF_FLAG = false;
-    bool OVERLOAD_FLAG = false;
-    bool ID_B_FLAG = true;
-    bool CRC_FLAG = true;
-    unsigned int aux_count = 0;
+    volatile bool OVERLOAD_FLAG = false;
+    volatile bool ID_B_FLAG = true;
+    volatile bool CRC_FLAG = true;
+    volatile unsigned int aux_count = 0;
 
-    unsigned int Data_Flag = 0;
-    unsigned int Remote_Flag = 0;
-    unsigned int Extended_Flag = 0; // 0-> Base || 1 -> Extended
+    volatile unsigned int Data_Flag = 0;
+    volatile unsigned int Remote_Flag = 0;
+    volatile unsigned int Extended_Flag = 0; // 0-> Base || 1 -> Extended
 
     char Vetor_ID_A[11];
     char Vetor_DLC[4];

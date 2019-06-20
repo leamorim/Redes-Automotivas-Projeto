@@ -1,10 +1,10 @@
   #include <TimerOne.h>
   #include <SoftwareSerial.h>
   
-  bool BUS_IDLE_FLAG = true;
-  char CAN_TX = '\0';
-  char CAN_RX = '\0';
-  bool GET_FRAME = true;
+  volatile bool BUS_IDLE_FLAG = true;
+  volatile char CAN_TX = '\0';
+  volatile char CAN_RX = '\0';
+  volatile bool GET_FRAME = true;
   String Frame_enc = "";
 
   enum end_dec_estados {BUS_IDLE = 0,SoF = 1,ID_A = 2,RTR_SRR = 3,IDE_0 = 4,R0 = 5, DLC = 6,
