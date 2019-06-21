@@ -1,5 +1,5 @@
   #include <TimerOne.h>
-//  #include <SoftwareSerial.h>
+  #include <SoftwareSerial.h>
   
   volatile bool BUS_IDLE_FLAG = true;
   volatile char CAN_TX = '\0';
@@ -225,8 +225,8 @@
           Serial.print("ID_A == 0x");
           Serial.println(input);
 
-          for(int i = 0; i < 12; i++){
-            ID[i] = aux[i];
+          for(int i = 0; i < 11; i++){
+            ID[i] = aux[i+1];
           }
    
           Serial.println(ID);
@@ -297,8 +297,8 @@
           input.toCharArray(data_input,17);
           hex_to_bin(data_input,data);
           Serial.print("Data: 0x");
-          Serial.println(input);
-
+          Serial.println(data_input);
+          Serial.print(data);
           STATE_SEND = WAIT_SEND;
           FRAME_START = false;
           GET_FRAME = false;
@@ -501,10 +501,10 @@
       case ID_A:
         if(!ARBITRATION_LOSS){
           if(Ecount < 11){
-            Frame[Ecount] = ID[Ecount];
+            Frame[Ecount] = ID[Ecount-1];
           }
           else {
-            Frame[Ecount] = ID[Ecount];   
+            Frame[Ecount] = ID[Ecount-1];   
             STATE_ENC = RTR;
           }
         }
@@ -1339,7 +1339,7 @@
 
     #define CAN_RX_PIN 9
     #define CAN_TX_PIN 10
-  //  SoftwareSerial mySerial(CAN_RX_PIN,CAN_TX_PIN);
+    SoftwareSerial mySerial(CAN_RX_PIN,CAN_TX_PIN);
 
     //Bit_Timing Defines
     #define TQ 100000  //Tempo em Microssegundos
@@ -1375,19 +1375,19 @@
           bit_stuffing_encoder();
           
         if(CAN_TX == '0'){//aqui que vai escrever no barramento, fazer
-         digitalWrite(CAN_TX_PIN,HIGH);
-         // mySerial.write(CAN_TX);
+         //digitalWrite(CAN_TX_PIN,HIGH);
+          mySerial.write(CAN_TX);
           //Serial.print(mySerial.write(CAN_TX));
-          Serial.print(" CAN_TX == ");
-          Serial.println(CAN_TX);
+       //   Serial.print(" CAN_TX == ");
+       //   Serial.println(CAN_TX);
          Frame_enc.concat(CAN_TX);
         }
         else if(CAN_TX == '1'){
-          digitalWrite(CAN_TX_PIN,LOW);
-         // mySerial.write(CAN_TX);
+         // digitalWrite(CAN_TX_PIN,LOW);
+          mySerial.write(CAN_TX);
           //Serial.print(mySerial.write(CAN_TX));
-          Serial.print(" CAN_TX == ");
-         Serial.println(CAN_TX);
+        //  Serial.print(" CAN_TX == ");
+       //  Serial.println(CAN_TX);
           Frame_enc.concat(CAN_TX);
         }   
 
@@ -1514,7 +1514,7 @@
     //Comunicação Serial
     //  pinMode(CAN_RX_PIN,INPUT);
     //  pinMode(CAN_TX_PIN,OUTPUT);
-     //mySerial.begin(115200);
+     mySerial.begin(115200);
     Serial.println("Digite 'b' para base frame e 'e' para extended frame" );
   }
 //Setup END
