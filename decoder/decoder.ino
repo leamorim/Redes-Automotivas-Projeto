@@ -31,7 +31,7 @@ char Vetor_CRC[15];
 char *Resultado_CRC;
 char Vetor_Frame[133];
 int count_frame = 0;
-char *Vetor_Frame_aux;
+char Vetor_Frame_aux[133];
 
 
 long int Value_ID_A;
@@ -210,6 +210,7 @@ void bit_stuffing_decoder(char Bit_Read){
     }
 }
 
+/*
 void frame_crc()
 {
   //Serial.println("Vetor_frame");
@@ -255,7 +256,7 @@ void frame_crc()
     }
   }
 
-}
+}*/
 
 void check_id(unsigned int Extended_Flag,  char *ID_A_DECODER,  char *ID_B_DECODER,char *ID_A_FRAME,  char *ID_B_FRAME)
 {
@@ -452,6 +453,7 @@ void UC_DECODER()
 
         Serial.println("Bus_Idle");
         Vetor_Frame[0] = '0';
+        Vetor_Frame_aux[0] = '0';
         count_frame = 1;
         
         if(OVERLOAD_FLAG_1)
@@ -493,6 +495,7 @@ void UC_DECODER()
         Vetor_ID_A[count_decoder - 1] = BIT_TO_SAVE;
         aux_count += 1;
         Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
+        Vetor_Frame_aux[count_frame + count_decoder - 1] = BIT_TO_SAVE;
         
         
         if(OVERLOAD_FLAG_1 &&  aux_count == 4)
@@ -530,6 +533,7 @@ void UC_DECODER()
 
       case RTR_SRR:
           Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
+          Vetor_Frame_aux[count_frame + count_decoder - 1] = BIT_TO_SAVE;
           count_frame += 1;
           if(count_decoder == L_BIT)
           {
@@ -556,6 +560,7 @@ void UC_DECODER()
 
       case IDE_0:
           Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
+          Vetor_Frame_aux[count_frame + count_decoder - 1] = BIT_TO_SAVE;
           count_frame += 1;
           if(count_decoder == L_BIT && BED_FLAG == true)
           {
@@ -584,6 +589,7 @@ void UC_DECODER()
 
       case IDE_1:
       Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
+      Vetor_Frame_aux[count_frame + count_decoder - 1] = BIT_TO_SAVE;
       count_frame += 1;
       if(count_decoder == L_BIT)
       {
@@ -616,8 +622,9 @@ void UC_DECODER()
 
       case ID_B:
           
-          Vetor_ID_B[count_decoder -1] = BIT_TO_SAVE;
+          Vetor_ID_B[count_decoder - 1] = BIT_TO_SAVE;
           Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
+          Vetor_Frame_aux[count_frame + count_decoder - 1] = BIT_TO_SAVE;
           
           if(count_decoder == 1)
           {
@@ -653,6 +660,7 @@ void UC_DECODER()
       case RTR:
 
           Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
+          Vetor_Frame_aux[count_frame + count_decoder - 1] = BIT_TO_SAVE;
           Vetor_RTR[0] = BIT_TO_SAVE;
           count_frame += 1;
 
@@ -683,6 +691,7 @@ void UC_DECODER()
       case R1R0:
 
           Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
+          Vetor_Frame_aux[count_frame + count_decoder - 1] = BIT_TO_SAVE;
 
           if(count_decoder == L_R1R0 && BED_FLAG == true)
           {
@@ -697,6 +706,7 @@ void UC_DECODER()
       case R0:
 
           Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
+          Vetor_Frame_aux[count_frame + count_decoder - 1] = BIT_TO_SAVE;
           count_frame += 1;
 
           if(count_decoder == L_BIT)
@@ -721,6 +731,7 @@ void UC_DECODER()
           
         Vetor_DLC[count_decoder - 1] = BIT_TO_SAVE;
         Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
+        Vetor_Frame_aux[count_frame + count_decoder - 1] = BIT_TO_SAVE;
 
         if(count_decoder == L_DLC)
         { 
@@ -783,7 +794,7 @@ void UC_DECODER()
       case DATA:
 
           Vetor_DATA[count_decoder -1] = BIT_TO_SAVE;
-          Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
+          //Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
 
           if(count_decoder == 1)
           {
@@ -886,7 +897,14 @@ void UC_DECODER()
           {
             //CRC Checked = CRC_READ
             //Concatenar campos
-            Resultado_CRC = MakeCRC(Vetor_Frame);
+            if(Data_Flag == 1)
+            {
+              Resultado_CRC = MakeCRC(Vetor_Frame);
+            }
+            else if(Data_Flag == 0)
+            {
+              Resultado_CRC = MakeCRC(Vetor_Frame_aux);
+            }
             
             /*Serial.println(" Resultado_CRC");
             for(int j = 0; j < 15; j++)
@@ -1107,7 +1125,7 @@ void setup() {
 
 void loop() {
 
-String entrada = "011001110010000011111001010101010101010101010101010101010101010101010101010101011001100111011011111111";
+String entrada = "011001110010000011111001010101010101010101010101010101010101010101010101010101011001100111011011111111010001001001111100000100000111110010000100010101010101010101010101010101010101010101010101010101010101010101111011111010101101111111101100111001000001001101010101100111000010101011111111";
 int strLenEntrada = entrada.length()+1;
 unsigned char frame[strLenEntrada];
 entrada.toCharArray(frame,strLenEntrada);
