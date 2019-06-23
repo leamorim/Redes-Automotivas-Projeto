@@ -1,10 +1,11 @@
   #include <TimerOne.h>
   #include <SoftwareSerial.h>
   
-  bool BUS_IDLE_FLAG = true;
-  char CAN_TX = '\0';
-  char CAN_RX = '\0';
-  bool GET_FRAME = true;
+  volatile bool BUS_IDLE_FLAG = true;
+  volatile char CAN_TX = '\0';
+  volatile char CAN_RX = '\0';
+  volatile bool GET_FRAME = true;
+  String Frame_enc = "";
 
   enum end_dec_estados {BUS_IDLE = 0,SoF = 1,ID_A = 2,RTR_SRR = 3,IDE_0 = 4,R0 = 5, DLC = 6,
     DATA = 7, CRC_READ = 8,CRC_DELIMITER = 9, ACK_SLOT = 10, ACK_DELIMITER, EoF,
@@ -224,8 +225,8 @@
           Serial.print("ID_A == 0x");
           Serial.println(input);
 
-          for(int i = 0; i < 12; i++){
-            ID[i] = aux[i];
+          for(int i = 0; i < 11; i++){
+            ID[i] = aux[i+1];
           }
    
           Serial.println(ID);
@@ -250,7 +251,7 @@
           Serial.print("DLC == ");
           Serial.println(dlc_input);
 
-          if(DLC_L > 8){//isso aqui eh possível acontecer ?
+          if(DLC_L > 8){
             DLC_L = 8;
             dlc[0] = '1';
             dlc[1] = '0';
@@ -296,8 +297,8 @@
           input.toCharArray(data_input,17);
           hex_to_bin(data_input,data);
           Serial.print("Data: 0x");
-          Serial.println(input);
-
+          Serial.println(data_input);
+          Serial.print(data);
           STATE_SEND = WAIT_SEND;
           FRAME_START = false;
           GET_FRAME = false;
@@ -308,11 +309,11 @@
             if(GET_FRAME){
               STATE_SEND = FORMAT_SEND;
               Serial.println("Digite 'b' para base frame e 'e' para extended frame" );
-            //  ID [12] = "";         
-          //   idb [19] = ""; 
-            //  dlc [4] = "";  
-            //  data [64] = "";
-            //  DLC_L = 0;
+              ID [0] = '\0';         
+              idb [0] = '\0'; 
+              dlc [0] = '\0';  
+              data [0] = '\0';
+              DLC_L = 0;
             }
         break;
     }
@@ -373,9 +374,10 @@
             CAN_TX = BIT_TO_WRITE;
             STATE_BS_ENC = INACTIVE;
             count_encoder = 0;
+            SEND_BIT = true;
           }
           else{
-              if(count_encoder < 5){
+              if(count_encoder < 4){
                   if(BIT_TO_WRITE != last_bit_enc){
                       //Serial.println("diferente");
                       count_encoder = 1;
@@ -393,23 +395,26 @@
                   }
                   STATE_BS_ENC = COUNTING;
               }
-              else{ //sexto bit aqui
+              else{ //quinto bit aqui
                   //STATE_BS_ENC_ENC = BIT_STUFFED;//dá pra criar um novo estado mas acho q dá pra deixar tudo nesse estado
                 // Serial.println("BIT STUFFED");
                   if(!BS_FLAG){
                     STATE_BS_ENC = INACTIVE;
                   }
                   else{
-                      SEND_BIT = false;
-                      count_encoder = 1;
-                      if(BIT_TO_WRITE == '0'){
-                          CAN_TX = '1';
+                      SEND_BIT = true;
+                      if(last_bit_enc == BIT_TO_WRITE){
+                         CAN_TX = BIT_TO_WRITE;
+                         last_bit_enc = BIT_TO_WRITE;
+                         STATE_BS_ENC = BIT_STUFFED;
+                         last_bit_enc = BIT_TO_WRITE;     
+                         count_encoder++;
                       }
-                      else if(BIT_TO_WRITE == '1'){
-                          CAN_TX = '0';
-                      }
-                      STATE_BS_ENC = BIT_STUFFED;
-                      last_bit_enc = BIT_TO_WRITE;
+                      else{
+                        count_encoder = 1;
+                        CAN_TX = BIT_TO_WRITE;
+                        last_bit_enc = BIT_TO_WRITE;
+                       }
                     }
                   }
             }
@@ -417,9 +422,20 @@
 
       case BIT_STUFFED:
           
-          CAN_TX = last_bit_enc;
+          if(last_bit_enc == '0'){
+            CAN_TX = '1';
+            last_bit_enc = '1';
+          }
+          else if(last_bit_enc == '1'){
+            CAN_TX = '0';
+            last_bit_enc = '0';
+          }
+
+          Serial.print("Bit_stuffed");
+          
           count_encoder = 1;
-          SEND_BIT = true;
+          SEND_BIT = false;
+          
           if(BS_FLAG){
               STATE_BS_ENC = COUNTING;
           }
@@ -485,10 +501,10 @@
       case ID_A:
         if(!ARBITRATION_LOSS){
           if(Ecount < 11){
-            Frame[Ecount] = ID[Ecount];
+            Frame[Ecount] = ID[Ecount-1];
           }
           else {
-            Frame[Ecount] = ID[Ecount];   
+            Frame[Ecount] = ID[Ecount-1];   
             STATE_ENC = RTR;
           }
         }
@@ -608,11 +624,13 @@
         else {
           Frame[Ecount] = '1';
           STATE_ENC = WAIT;
-          Serial.print("FRAME: ");
-          Serial.println(Frame);
+          Serial.print("FRAME ENC: ");
+          Serial.println(Frame_enc);
+
           Serial.println("FRAME PRINTER: ");
-      ///    Frame_Printer(Frame,FF,FT,DLC_L);
+          Frame_Printer(Frame,FF,FT,DLC_L);
           free(Frame);
+          //Frame = NULL;
           Serial.println("FRAME END");
         }
         Serial.print("INTERFRAME SPACING: ");
@@ -957,6 +975,7 @@
     //    Serial.println(Frame[Ecount]);
         break;
       case INTERFRAME_SPACING:    //64 (+DLC_L) - 66 (+DLC_L) Position
+        Serial.println("INTERFRAME");
         BS_FLAG = false;
         if(Ecount < 66 + (DLC_L*8)){
           Frame[Ecount] = '1';
@@ -1013,8 +1032,8 @@
         else{
           STATE_ENC = ARBITRATION_LOSS_STATE;
         }
-          Serial.print("IDA: ");
-          Serial.println(Frame[Ecount]);
+        //  Serial.print("IDA: ");
+        //  Serial.println(Frame[Ecount]);
           break;
       case SRR:
         if(!ARBITRATION_LOSS){
@@ -1024,8 +1043,8 @@
         else{
           STATE_ENC = ARBITRATION_LOSS_STATE;
         }
-          Serial.print("RTR: ");
-          Serial.println(Frame[Ecount]);
+         // Serial.print("RTR: ");
+         // Serial.println(Frame[Ecount]);
           break;
       case IDE:
         if(!ARBITRATION_LOSS){
@@ -1035,8 +1054,8 @@
         else{
           STATE_ENC = ARBITRATION_LOSS_STATE;
         }
-          Serial.print("IDE: ");
-          Serial.println(Frame[Ecount]);
+          //Serial.print("IDE: ");
+          //Serial.println(Frame[Ecount]);
           break;
       case IDB:
         if(!ARBITRATION_LOSS){
@@ -1318,8 +1337,8 @@
 
 //Bit_Timing_Module BEGIN
 
-    #define CAN_RX_PIN 7
-    #define CAN_TX_PIN 8
+    #define CAN_RX_PIN 9
+    #define CAN_TX_PIN 10
     SoftwareSerial mySerial(CAN_RX_PIN,CAN_TX_PIN);
 
     //Bit_Timing Defines
@@ -1347,6 +1366,7 @@
     volatile char last_bit_bt = '\0';
 
 
+
     
     void func_writing_point(){
         if(!GET_FRAME){
@@ -1355,16 +1375,20 @@
           bit_stuffing_encoder();
           
         if(CAN_TX == '0'){//aqui que vai escrever no barramento, fazer
+         //digitalWrite(CAN_TX_PIN,HIGH);
           mySerial.write(CAN_TX);
           //Serial.print(mySerial.write(CAN_TX));
-         // Serial.print(" CAN_TX == ");
-         // Serial.println(CAN_TX);
+       //   Serial.print(" CAN_TX == ");
+       //   Serial.println(CAN_TX);
+         Frame_enc.concat(CAN_TX);
         }
         else if(CAN_TX == '1'){
+         // digitalWrite(CAN_TX_PIN,LOW);
           mySerial.write(CAN_TX);
           //Serial.print(mySerial.write(CAN_TX));
-          //Serial.print(" CAN_TX == ");
-          //Serial.println(CAN_TX);
+        //  Serial.print(" CAN_TX == ");
+       //  Serial.println(CAN_TX);
+          Frame_enc.concat(CAN_TX);
         }   
 
         }
