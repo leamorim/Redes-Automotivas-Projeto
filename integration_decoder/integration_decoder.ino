@@ -15,8 +15,6 @@
     char CAN_TX = '\0';
     char CAN_RX = '\0';
     bool BUS_IDLE_FLAG = true;
-    String Frame_dec = "";
-    String Frame_decnbs = "";
     
   enum end_dec_estados {BUS_IDLE = 0,SoF = 1,ID_A = 2,RTR_SRR = 3,IDE_0 = 4,R0 = 5, DLC = 6,
     DATA = 7, CRC_READ = 8,CRC_DELIMITER = 9, ACK_SLOT = 10, ACK_DELIMITER, EoF,
@@ -28,7 +26,8 @@
 
   enum bs_estados {INACTIVE = 0,COUNTING,BIT_STUFFED} STATE_BS_ENC,STATE_BS_DEC;
 
-    long int BinToDec(char bin[], int tam){
+    long int BinToDec(char bin[], int tam)
+    {
         unsigned int i;
         long int num = 0;
 
@@ -46,8 +45,8 @@
         return num;
     }
 
-    
-    void BinToHex(char bit1, char bit2, char bit3, char bit4) {
+    void BinToHex(char bit1, char bit2, char bit3, char bit4) 
+    {
         if(bit1 == '0' && bit2 == '0' && bit3 == '0' && bit4 == '0')
         {
         Serial.print("0");
@@ -114,76 +113,76 @@
         }
     }
 
-    void check_id(unsigned int Extended_Flag,  char *ID_A_DECODER,  char *ID_B_DECODER,char *ID_A,  char *ID_B)
+    void check_id(unsigned int Extended_Flag,  char *ID_A_DECODER,  char *ID_B_DECODER,char *ID_A_FRAME,  char *ID_B_FRAME)
     {
-    bool ID_FLAG = true;
-    int k = 0;
+        bool ID_FLAG = true;
+        int k = 0;
 
-    for(k = 0; k < 11; k++)
-    {
-        if(ID_A_DECODER[k] != ID_A[k])
+        for(k = 0; k < 11; k++)
         {
-        ID_FLAG  = false;
-        }
-
-    }
-
-    if(Extended_Flag)
-    {
-        for(k = 0; k < 18; k++)
-        {
-        if(ID_B_DECODER[k] != ID_B[k])
-        {
+            if(ID_A_DECODER[k] != ID_A_FRAME[k])
+            {
             ID_FLAG  = false;
-        }
+            }
 
         }
+
+        if(Extended_Flag)
+        {
+            for(k = 0; k < 18; k++)
+            {
+            if(ID_B_DECODER[k] != ID_B_FRAME[k])
+            {
+                ID_FLAG  = false;
+            }
+
+            }
+        }
+
+        if(ID_FLAG) 
+        {
+            Serial.println("ID Checked"); //Acender LED 
+        }
+        else
+        {
+            Serial.println("OUTRO ID"); //Acender outro LED
+        }
+
     }
 
-    if(ID_FLAG) 
-    {
-        Serial.println("ID Checked"); //Acender LED 
-    }
-    else
-    {
-        Serial.println("OUTRO ID"); //Acender outro LED
-    }
-
-    }
-
-    void print_frame(char RTR, char IDE, char *ID_A, char *ID_B,unsigned int Value_DLC, char *Data, char *CRC)
+    void print_frame(char RTR_FRAME, char IDE_FRAME, char *ID_A_FRAME, char *ID_B_FRAME,unsigned int Value_DLC, char *DATA_FRAME, char *CRC_FRAME)
     {
         long int Value;
         int i = 0;
 
-        if(IDE == '1')
+        if(IDE_FRAME == '1')
         {
             Serial.println("SRR = 1");
             Serial.println("IDE = 1");
             Serial.println("EXTENDED FRAME");
 
-            Value = BinToDec(ID_A, 11);
+            Value = BinToDec(ID_A_FRAME, 11);
             Serial.print("ID_A: 0x0");
             Serial.println(Value,HEX);
 
             Serial.print("ID_B: 0x0");
-            BinToHex('0','0',ID_B[0],ID_B[1]);
+            BinToHex('0','0',ID_B_FRAME[0],ID_B_FRAME[1]);
             for(i = 0; i < 16; i += 4)
             {
-            BinToHex(ID_B[i+2],ID_B[i+3],ID_B[i+4],ID_B[i+5]);
+            BinToHex(ID_B_FRAME[i+2],ID_B_FRAME[i+3],ID_B_FRAME[i+4],ID_B_FRAME[i+5]);
             }
             Serial.println("");
         }
-        else if(IDE == '0')
+        else if(IDE_FRAME == '0')
         {
             Serial.println("IDE = 0");
             Serial.println("BASE FRAME");
-            Value = BinToDec(ID_A, 11);
+            Value = BinToDec(ID_A_FRAME, 11);
             Serial.print("ID_A: 0x0");
             Serial.println(Value,HEX);
         }
 
-        if(RTR == '1')
+        if(RTR_FRAME == '1')
         {
             Serial.println("RTR = 1");
             Serial.println("REMOTE FRAME");
@@ -194,7 +193,7 @@
             Serial.println("DATA: 0x00");
             
         }
-        else if(RTR == '0')
+        else if(RTR_FRAME == '0')
         {
             Serial.println("RTR = 0");
             Serial.println("DATA FRAME");
@@ -202,15 +201,18 @@
 
             for(i = 0; i < ((Value_DLC*8));  i += 4)
             {
-            BinToHex(Data[i],Data[i+1],Data[i+2],Data[i+3]);
-            
+            BinToHex(DATA_FRAME[i],DATA_FRAME[i+1],DATA_FRAME[i+2],DATA_FRAME[i+3]);
             }
             Serial.println("");
         }
         
-        Value = BinToDec(CRC, L_CRC);
+        Value = BinToDec(CRC_FRAME, L_CRC);
         Serial.print("CRC:");
-        Serial.println(CRC); //HEX ???
+        for(i = 0; i < 15 ; i++)
+        {       
+            Serial.print(CRC_FRAME[i]); //HEX ???
+        }
+        Serial.println("");
     }
 
 //CRC_Module BEGIN
@@ -280,20 +282,21 @@
     unsigned int Remote_Flag = 0;
     unsigned int Extended_Flag = 0; // 0-> Base || 1 -> Extended
 
-    char Vetor_ID_A[11];
+    char Vetor_RTR[1];
+    char Vetor_IDE[1];
     char Vetor_DLC[4];
-    char Vetor_ID_B[18];
-    char Vetor_DATA[64];
-    char Vetor_CRC[15];
-    char *Resultado_CRC;
-    char Vetor_Frame[133];
+    char *Vetor_ID_A = NULL;
+    char *Vetor_ID_B= NULL;
+    char *Vetor_DATA = NULL;
+    char *Vetor_CRC = NULL;
+    char *Resultado_CRC = NULL;
+    char* Vetor_Frame = NULL;
     int count_frame = 0;
 
     long int Value_ID_A;
     long int Value_DLC;
     long int Value_ID_B;
     long int Value_CRC;
-    char DataHex[4];
     int i;
 
     unsigned int error_count = 0;
@@ -377,679 +380,600 @@
     }
 
   
-    //Decoder Variáveis END
+//Decoder Variáveis END
     void UC_DECODER()
     {
         if(CAPTURE)
         {
             switch(STATE_DEC)
             {
-            case BUS_IDLE:
+                case BUS_IDLE:
+                    // Serial.println("Bus_Idle");
+                    Vetor_Frame = (char*) calloc(103,sizeof(char));
+                    Vetor_ID_A = (char*) calloc(11,sizeof(char));
+                    Vetor_Frame[0] = '0';
+                    count_frame = 1;
+                    
+                    if(OVERLOAD_FLAG_1)
+                    {
+                        Vetor_ID_A[count_decoder - 1] = BIT_TO_SAVE;
+                        //BSD_FLAG = false;
+                        STATE_DEC = ID_A;   
+                    }
+                    else
+                    {
+                        if(BUS_IDLE_FLAG)
+                        {
+                            Serial.println("Bus_Idle");
+                            if(BIT_TO_SAVE == '0')
+                            {
+                                BUS_IDLE_FLAG = false;                 
+                                Vetor_ID_B = (char*) calloc(18,sizeof(char));
+                                Vetor_CRC = (char*) calloc(15,sizeof(char));
+                                count_decoder = 0;
+                                Serial.println("SoF");
+                                BSD_FLAG = true;
+                                STATE_DEC = ID_A;
+                            }
+                            else if(BIT_TO_SAVE == '1')
+                            {
+                                BUS_IDLE_FLAG = true; 
+                                BSD_FLAG = false;               
+                                count_decoder = 0;
+                                STATE_DEC = BUS_IDLE;
+                            }
+                        }
+                    }
 
-               // Serial.println("Bus_Idle");
-                Vetor_Frame[0] = '0';
-                count_frame = 1;
+                break;
+
+                case ID_A:
                 
-                if(OVERLOAD_FLAG_1)
-                {
-                Vetor_ID_A[count_decoder - 1] = BIT_TO_SAVE;
-                //BSD_FLAG = false;
-                STATE_DEC = ID_A;
-                
-                }
-                else
-                {
-                    if(BUS_IDLE_FLAG)
+                    Vetor_ID_A[count_decoder - 1] = BIT_TO_SAVE;
+                    Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
+                    aux_count += 1;
+                    
+                    if(OVERLOAD_FLAG_1 &&  aux_count == 4)
+                    {
+                        aux_count = 0;            
+                        if(Vetor_ID_A[1] == '0' && Vetor_ID_A[2] == '0' && Vetor_ID_A[3] == '0' && Vetor_ID_A[4] == '0')
+                        {
+                            OVERLOAD_FLAG = true;
+                            BSD_FLAG = false;
+                            error_12 = true;
+                            count_decoder = 0;
+                            Serial.println("OVERLOAD FRAME"); 
+                            STATE_DEC = STATE_ERROR;
+                        }
+                        else
+                        {
+                            OVERLOAD_FLAG_1 = false;
+                        }
+                    }
+
+                    if(count_decoder == L_ID_A && BSD_FLAG == true && BED_FLAG == false)
+                    { 
+                        count_frame += 11;
+                        aux_count = 0;
+                        count_decoder  = 0;
+                        STATE_DEC = RTR_SRR;
+                    } 
+                break;
+
+                case RTR_SRR:
+                    Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
+                    Vetor_RTR[0] = BIT_TO_SAVE;
+                    count_frame += 1;
+                    
+                    if(count_decoder == L_BIT)
                     {
                         if(BIT_TO_SAVE == '0')
                         {
-                            BUS_IDLE_FLAG = false;
-                            //SoF_FLAG = true;
-                            count_decoder = 0;
-                       //     Serial.println("SoF");
-                            BSD_FLAG = true;
-                            STATE_DEC = ID_A;
+                            count_decoder  = 0;
+                            Data_Flag = 1; //Data Frame
+                            BED_FLAG = true;
+                            STATE_DEC = IDE_0; 
+                            //Serial.println("RTR = 0");
+                            //Serial.println("Data frame");
+                            // Base Data Frame or Format_Error
                         }
                         else if(BIT_TO_SAVE == '1')
                         {
-                       //     Serial.println("Bus_Idle");
-                            BUS_IDLE_FLAG = true; 
-                            BSD_FLAG = false;               
-                            count_decoder = 0;
-                            STATE_DEC = BUS_IDLE;
+                            count_decoder  = 0;
+                            STATE_DEC = IDE_1;
+                            //Could be Base/extend Data/Remote frame
                         }
-                }
-            }
+                    }
+                break;
 
-            break;
+                case IDE_0:
+                    Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
+                    Vetor_IDE[0] = BIT_TO_SAVE;
+                    count_frame += 1;
+                
+                    if(count_decoder == L_BIT && BED_FLAG == true)
+                    {               
+                        //Serial.println("IDE_0");
+                        if(BIT_TO_SAVE == '0')
+                        {
+                            //Serial.println("IDE  = 0");
+                            //Serial.println("Base frame Format");
+                            count_decoder  = 0;
+                            STATE_DEC = R0;
+                        }
+                        else
+                        {
+                            
+                            //Serial.println("IDE = 1");
+                            //Serial.println("Format Error"); 
+                            count_decoder  = 0;
+                            STATE_DEC = FORMAT_ERROR;
+                        }
+                    } 
+                break;
 
-            case ID_A:
-                
-                //SoF_FLAG = false;
-                //Serial.print(BIT_TO_SAVE);
-                Vetor_ID_A[count_decoder - 1] = BIT_TO_SAVE;
-                aux_count += 1;
-                Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
-                
-                
-                if(OVERLOAD_FLAG_1 &&  aux_count == 4)
-                {
-                aux_count = 0;            
-                if(Vetor_ID_A[1] == '0' && Vetor_ID_A[2] == '0' && Vetor_ID_A[3] == '0' && Vetor_ID_A[4] == '0')
-                {
-                    OVERLOAD_FLAG = true;
-                    BSD_FLAG = false;
-                    error_12 = true;
-                    count_decoder = 0;
-                    Serial.println("OVERLOAD FRAME"); 
-                    STATE_DEC = STATE_ERROR;
-                }
-                else
-                {
-                    OVERLOAD_FLAG_1 = false;
-                }
-                
-                }
+                //States Extend
 
+                case IDE_1:
+                
+                    Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
+                    Vetor_IDE[0] = BIT_TO_SAVE;
+                    count_frame += 1;
 
-                if(count_decoder == L_ID_A && BSD_FLAG == true && BED_FLAG == false)
-                {
+                    if(count_decoder == L_BIT)
+                    {
+                        //Serial.println("IDE_1");
+                        if(BIT_TO_SAVE == '0')
+                        {
+                            //Serial.println("RTR = 1");
+                            //Serial.println("Remote Frame"); 
+                            //Serial.println("IDE = 0");
+                            //Serial.println("Base Frame Format");
+                            BED_FLAG = true;
+                            Remote_Flag = 1;
+                            count_decoder  = 0;
+                            STATE_DEC = R0;
+                        }
+                        else if(BIT_TO_SAVE == '1')
+                        {
+                            //Serial.println("SRR = 1");
+                            //Serial.println("IDE = 1");
+                            //Serial.println("Extend Frame");
+                            Extended_Flag = 1;
+                            count_decoder  = 0;
+                            STATE_DEC = ID_B;
+                        }  
+                    }
+                break;
+
+                case ID_B:
                     
-                    count_frame += 11;
-                    //Value_ID_A = BinToDec(Vetor_ID_A, 11);
-                    Serial.print("ID_A: 0x0");
-                    //Serial.println(Value_ID_A,HEX);
+                    Vetor_ID_B[count_decoder -1] = BIT_TO_SAVE;
+                    Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
+
+                    if(count_decoder == L_ID_B)
+                    {
+                        count_frame += 18;
+                        count_decoder  = 0;
+                        STATE_DEC = RTR;
+                    } 
+                break;
+
+                case RTR:
+
+                    Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
+                    Vetor_RTR[0] = BIT_TO_SAVE;      
+                    count_frame += 1;
+
+                    if(count_decoder == L_BIT)
+                    {
+                        //Serial.println("RTR");
+                        BED_FLAG = true;
+
+                        if(BIT_TO_SAVE == '0')
+                        {
+                            //Serial.println("Data frame");
+                            //Serial.println("RTR = 0"); 
+                            Data_Flag = 1;
+                            count_decoder  = 0;
+                            STATE_DEC = R1R0;  
+                        }
+                        else
+                        {
+                            //Serial.println("Remote frame");
+                            //Serial.println("RTR = 1");
+                            Remote_Flag = 1;
+                            count_decoder  = 0;
+                            STATE_DEC = R1R0;  
+                        }     
+                    } 
+                break;
+
+                case R1R0:
+
+                    Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
+
+                    if(count_decoder == L_R1R0 && BED_FLAG == true)
+                    {
+                        count_frame += 2;
+                        //Serial.println("R1R0");
+                        count_decoder  = 0;
+                        STATE_DEC = DLC;
+                    }
+                break;       
+
+                //States Extend
+                case R0:
+
+                    Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
+                    count_frame += 1;
+
+                    if(count_decoder == L_BIT)
+                    {
+                    
+                        //Serial.println("R0");
+                        if((BIT_TO_SAVE == '0' || BIT_TO_SAVE == '1') && Remote_Flag == 0)
+                        {
+                            count_decoder  = 0;
+                            STATE_DEC = DLC;
+                        }
+                        else if((BIT_TO_SAVE == '0' || BIT_TO_SAVE == '1') && Remote_Flag == 1 && BED_FLAG == true )
+                        {
+                            count_decoder  = 0;
+                            STATE_DEC = DLC;
+                        }
+                    } 
+                break;
+
+                case DLC:
+                    
+                    Vetor_DLC[count_decoder - 1] = BIT_TO_SAVE;
+                    Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
+
+                    if(count_decoder == L_DLC)
+                    { 
+                        count_frame += 4;
+                        Value_DLC = BinToDec(Vetor_DLC, 4);
+                        Value_DLC = (Value_DLC > 8) ? 8 : Value_DLC;  
+                        Vetor_DATA = (char*) calloc((Value_DLC*8),sizeof(char));
+                    
+                        if(Data_Flag == 1 && Extended_Flag == 0)
+                        {         
+
+                            if(Value_DLC == 0)
+                            {
+                                //  Serial.println("DATA: 0x00");
+                                count_decoder  = 0;          
+                                STATE_DEC = CRC_READ;
+                            } 
+                            else
+                            {
+                                count_decoder  = 0;          
+                                STATE_DEC = DATA;
+                            }
+                        }
+                        else if(Remote_Flag == 1 && Extended_Flag == 0)
+                        {
+                            Remote_Flag = 0;
+                            count_decoder  = 0;
+                            STATE_DEC = CRC_READ;
+                        }
+                        else if(Data_Flag == 1 &&  Extended_Flag == 1)
+                        {   
+                            if(Value_DLC == 0)
+                            {
+                                //Serial.println("DATA: 0x00");
+                                count_decoder  = 0;          
+                                STATE_DEC = CRC_READ;
+                            } 
+                            else
+                            {
+                                count_decoder  = 0;          
+                                STATE_DEC = DATA;
+                            }
+
+                        }
+                        else if(Remote_Flag == 1 && Extended_Flag == 1)
+                        {
+                            //Serial.println("DATA: 0x00");
+                            count_decoder  = 0;
+                            STATE_DEC = CRC_READ;
+                        }
+                    
+                    } 
+                break;
+
+                case DATA:
+
+                    Vetor_DATA[count_decoder -1] = BIT_TO_SAVE;
+                    Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
+                    
+                    if(count_decoder == (Value_DLC*8))
+                    { 
+                        count_frame += (Value_DLC*8);
+
+                        if(Data_Flag == 1 && Extended_Flag == 0)
+                        {
+                            count_decoder  = 0;
+                            STATE_DEC = CRC_READ;
+                        }
+                        else if(Data_Flag == 1 && Extended_Flag == 1)
+                        {
+                            count_decoder  = 0;
+                            STATE_DEC = CRC_READ;
+                        }
+                    } 
+                break;
+
+                case CRC_READ:
+                    
+                    Vetor_CRC[count_decoder -1] = BIT_TO_SAVE;
                     aux_count = 0;
-                    count_decoder  = 0;
-                    STATE_DEC = RTR_SRR;
-                } 
-            break;
 
-            case RTR_SRR:
-                Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
-                count_frame += 1;
-                if(count_decoder == L_BIT)
-                {
-                    //Serial.println("RTR_SRR");
-                    if(BIT_TO_SAVE == '0')
+                    if(count_decoder == L_CRC)
                     {
-                    count_decoder  = 0;
-                    Data_Flag = 1; //Data Frame
-                    BED_FLAG = true;
-                    STATE_DEC = IDE_0; 
-                    //Serial.println("RTR = 0");
-                    Serial.println("Data frame");
-                    // Base Data Frame or Format_Error
-                    }
-                    else if(BIT_TO_SAVE == '1')
-                    {
-                    count_decoder  = 0;
-                    STATE_DEC = IDE_1;
-                    //Could be Base/extend Data/Remote frame
-                    }
-                }
-            break;
-
-            case IDE_0:
-                Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
-                count_frame += 1;
-                if(count_decoder == L_BIT && BED_FLAG == true)
-                {
-                
-                //Serial.println("IDE_0");
-                if(BIT_TO_SAVE == '0')
-                {
-                    //Serial.println("IDE  = 0");
-                    Serial.println("Base frame Format");
-                    count_decoder  = 0;
-                    STATE_DEC = R0;
-                }
-                else
-                {
-                    
-                    //Serial.println("IDE = 1");
-                    Serial.println("Format Error"); 
-                    count_decoder  = 0;
-                    STATE_DEC = FORMAT_ERROR;
-                }
-                } 
-            break;
-
-            //States Extend
-
-            case IDE_1:
-            Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
-            count_frame += 1;
-            if(count_decoder == L_BIT)
-            {
-                //Serial.println("IDE_1");
-                if(BIT_TO_SAVE == '0')
-                {
-                    //Serial.println("RTR = 1");
-                    Serial.println("Remote Frame"); 
-                    //Serial.println("IDE = 0");
-                    Serial.println("Base Frame Format");
-                    BED_FLAG = true;
-                    Remote_Flag = 1;
-                    count_decoder  = 0;
-                    STATE_DEC = R0;
-                }
-                else if(BIT_TO_SAVE == '1')
-                {
-                    //Serial.println("SRR = 1");
-                    //Serial.println("IDE = 1");
-                    Serial.println("Extend Frame");
-                    Extended_Flag = 1;
-                    count_decoder  = 0;
-                    STATE_DEC = ID_B;
-                }  
-            }
-            break;
-
-            case ID_B:
-                
-                Vetor_ID_B[count_decoder -1] = BIT_TO_SAVE;
-                Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
-                
-                if(count_decoder == 1)
-                {
-                Serial.print("ID_B: 0x");
-                }
-                
-                DataHex[aux_count] = Vetor_ID_B[count_decoder -1];
-                aux_count += 1;
-
-                if(count_decoder == 2 && ID_B_FLAG == true)
-                {
-                ID_B_FLAG = false;
-                aux_count = 0;
-                BinToHex('0','0',DataHex[0],DataHex[1]);
-                }
-                
-                if(aux_count == 4 )
-                {
-                ID_B_FLAG == true;
-                aux_count = 0;
-                BinToHex(DataHex[0],DataHex[1],DataHex[2],DataHex[3]);
-                }
-
-                if(count_decoder == L_ID_B)
-                {
-                count_frame += 18;
-                Serial.println("");
-                count_decoder  = 0;
-                STATE_DEC = RTR;
-                } 
-            break;
-
-            case RTR:
-
-                Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
-                count_frame += 1;
-
-                if(count_decoder == L_BIT)
-                {
-                //Serial.println("RTR");
-                BED_FLAG = true;
-
-                if(BIT_TO_SAVE == '0')
-                {
-                    Serial.println("Data frame");
-                    //Serial.println("RTR = 0"); 
-                    Data_Flag = 1;
-                    count_decoder  = 0;
-                    STATE_DEC = R1R0;  
-                }
-                else
-                {
-                    Serial.println("Remote frame");
-                    //Serial.println("RTR = 1");
-                    Remote_Flag = 1;
-                    count_decoder  = 0;
-                    STATE_DEC = R1R0;  
-                }     
-                } 
-            break;
-
-            case R1R0:
-
-                Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
-
-                if(count_decoder == L_R1R0 && BED_FLAG == true)
-                {
-                count_frame += 2;
-                //Serial.println("R1R0");
-                count_decoder  = 0;
-                STATE_DEC = DLC;
-                }
-            break;       
-
-            //States Extend
-            case R0:
-
-                Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
-                count_frame += 1;
-
-                if(count_decoder == L_BIT)
-                {
-                
-                //Serial.println("R0");
-
-                if((BIT_TO_SAVE == '0' || BIT_TO_SAVE == '1') && Remote_Flag == 0)
-                {
-                    count_decoder  = 0;
-                    STATE_DEC = DLC;
-                }
-                else if((BIT_TO_SAVE == '0' || BIT_TO_SAVE == '1') && Remote_Flag == 1 && BED_FLAG == true )
-                {
-                    count_decoder  = 0;
-                    STATE_DEC = DLC;
-                }
-            } 
-            break;
-
-            case DLC:
-                
-                Vetor_DLC[count_decoder - 1] = BIT_TO_SAVE;
-                Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
-
-                if(count_decoder == L_DLC)
-                { 
-                count_frame += 4;
-                Value_DLC = BinToDec(Vetor_DLC, 4);
-                Value_DLC = (Value_DLC > 8) ? 8 : Value_DLC;  
-                Serial.print("DLC: ");  
-                Serial.print(Value_DLC);
-                //Serial.println("bytes");
-
-                if(Data_Flag == 1 && Extended_Flag == 0)
-                {         
-                    
-                    if(Value_DLC == 0)
-                    {
-                  //  Serial.println("DATA: 0x00");
-                    count_decoder  = 0;          
-                    STATE_DEC = CRC_READ;
+                        Value_CRC = BinToDec(Vetor_CRC, L_CRC);
+                        BSD_FLAG = false;
+                        count_decoder  = 0;
+                        STATE_DEC = CRC_DELIMITER;
                     } 
-                    else
+                break;
+
+                case CRC_DELIMITER:
+                    if(count_decoder == L_BIT && BSD_FLAG == false)
                     {
-                    count_decoder  = 0;          
-                    STATE_DEC = DATA;
-                    }
-                }
-                else if(Remote_Flag == 1 && Extended_Flag == 0)
-                {
-                    Remote_Flag = 0;
-                    count_decoder  = 0;
-                    STATE_DEC = CRC_READ;
-                }
-                else if(Data_Flag == 1 &&  Extended_Flag == 1)
-                {        
-                    if(Value_DLC == 0)
-                    {
-                    Serial.println("DATA: 0x00");
-                    count_decoder  = 0;          
-                    STATE_DEC = CRC_READ;
+                        if(BIT_TO_SAVE == '1')
+                        {
+                            //Serial.println("CRC_DELIMITER");
+                            count_decoder  = 0;
+                            STATE_DEC = ACK_SLOT;
+                        }
+                        else
+                        { 
+                            //Serial.println("CRC_DELIMITER Format Error");
+                            count_decoder  = 0;
+                            STATE_DEC = FORMAT_ERROR;                
+                        }
                     } 
-                    else
+                break;
+
+                case ACK_SLOT:
+                    if(count_decoder == L_BIT)
                     {
-                    count_decoder  = 0;          
-                    STATE_DEC = DATA;
-                    }
+                        //Serial.println("ACK_SLOT");
+                        //BIT_TO_WRITE = '0';  
+                        ACK_FLAG = true;
+                        STATE_DEC = ACK_DELIMITER;
+                        count_decoder  = 0;
+                        /*if(BIT_TO_SAVE == '0')
+                        {
+                            Serial.println("ACK_SLOT");
+                            count_decoder  = 0;
+                            STATE_DEC = ACK_DELIMITER;
+                        }
+                        else
+                        {
+                            Serial.println("ACK ERROR");
+                            count_decoder  = 0;
+                            STATE_DEC = ACK_ERROR;             
+                        }*/
+                    } 
+                break;
 
-                }
-                else if(Remote_Flag == 1 && Extended_Flag == 1)
-                {
-                    Serial.println("DATA: 0x00");
-                    //Remote_Flag = 0;
-                    //Extended_Flag - 0;  
-                    count_decoder  = 0;
-                    STATE_DEC = CRC_READ;
-                }
-                
-                } 
-            break;
+                case ACK_DELIMITER:
+                    if(count_decoder == L_BIT)
+                    {
+                        Resultado_CRC = (char*) calloc(15,sizeof(char));
+                        //Serial.println(Vetor_Frame);
+                        Resultado_CRC = MakeCRC(Vetor_Frame);
 
-            case DATA:
+                        for(int j = 0; j < 15; j++)
+                        {
+                            //Serial.print(Resultado_CRC[j]);
+                            if(Resultado_CRC[j] != Vetor_CRC[j])
+                            {
+                                CRC_FLAG = false;
+                            }
+                        }
 
-                Vetor_DATA[count_decoder -1] = BIT_TO_SAVE;
-                Vetor_Frame[count_frame + count_decoder - 1] = BIT_TO_SAVE;
+                        if(CRC_FLAG)
+                        {
+                            //Serial.println("CRC Checked");
+                        }
+                        else
+                        {
+                            Serial.println("CRC ERROR");
+                            STATE_DEC = CRC_ERROR;
+                        }
 
-                if(count_decoder == 1)
-                {
-                   // Serial.print("DATA: 0x");
-                }
+                        BSD_FLAG = false;
+                        if(BIT_TO_SAVE == '1')
+                        { 
+                            //Serial.println("ACK_DELIMITER");
+                            count_decoder  = 0;
+                            STATE_DEC = EoF;
+                        }
+                        else
+                        {
+                            // Serial.println("ACK_DELIMITER FORMAT ERROR");
+                            count_decoder  = 0;
+                            STATE_DEC = FORMAT_ERROR;       
+                        }                
+                        
+                    } 
+                break;
 
-                DataHex[aux_count] = Vetor_DATA[count_decoder -1];
-                aux_count += 1;
-                
-                if(aux_count == 4 )
-                {
-                aux_count = 0;
-                //BinToHex(DataHex[0],DataHex[1],DataHex[2],DataHex[3]);
-                }
+                case EoF:
+                    //Serial.print("EOF");
 
-                if(count_decoder == (Value_DLC*8))
-                { 
-                count_frame += (Value_DLC*8);
-                Serial.println("");
-
-                if(Data_Flag == 1 && Extended_Flag == 0)
-                {
-                    //Data_Flag = 0;
-                    count_decoder  = 0;
-                    STATE_DEC = CRC_READ;
-                }
-                else if(Data_Flag == 1 && Extended_Flag == 1)
-                {
-                    //Data_Flag = 0;
-                    //Extended_Flag = 0;
-                    count_decoder  = 0;
-                    STATE_DEC = CRC_READ;
-
-                }
-                } 
-            break;
-
-            case CRC_READ:
-                
-                Vetor_CRC[count_decoder -1] = BIT_TO_SAVE;
-                //Serial.print(BIT_TO_SAVE);
-                aux_count = 0;
-
-                if(count_decoder == L_CRC)
-                {
-                //Value_CRC = BinToDec(Vetor_CRC, L_CRC);
-                //Serial.print("CRC: 0x0");
-                //Serial.println(Value_CRC,HEX);
-                
-
-                    BSD_FLAG = false;
-                    count_decoder  = 0;
-                    STATE_DEC = CRC_DELIMITER;
-                } 
-            break;
-
-            case CRC_DELIMITER:
-                if(count_decoder == L_BIT && BSD_FLAG == false)
-                {
                     if(BIT_TO_SAVE == '1')
                     {
-                    Serial.println("CRC_DELIMITER");
-                    count_decoder  = 0;
-                    STATE_DEC = ACK_SLOT;
+                        if(count_decoder == L_EOF)
+                        {
+                            print_frame(Vetor_RTR[0],Vetor_IDE[0], Vetor_ID_A,Vetor_ID_B,Value_DLC,Vetor_DATA,Vetor_CRC);
+                            Serial.println("EOF");
+                            count_decoder  = 0;       
+                            free(Vetor_Frame); 
+                            free(Resultado_CRC);
+                            free(Vetor_DATA); 
+                            free(Vetor_ID_A);
+                            free(Vetor_ID_B);
+                            free(Vetor_CRC); 
+                            STATE_DEC = INTERFRAME_SPACING;
+                        }
                     }
                     else
-                    { 
-                    Serial.println("CRC_DELIMITER Format Error");
-                    count_decoder  = 0;
-                    STATE_DEC = FORMAT_ERROR;                
-                    }
-                } 
-            break;
-
-            case ACK_SLOT:
-                if(count_decoder == L_BIT)
-                {
-                Serial.println("ACK_SLOT");
-                //BIT_TO_WRITE = '0';  
-                ACK_FLAG = true;
-                STATE_DEC = ACK_DELIMITER;
-                count_decoder  = 0;
-                /*if(BIT_TO_SAVE == '0')
-                {
-                    Serial.println("ACK_SLOT");
-                    count_decoder  = 0;
-                    STATE_DEC = ACK_DELIMITER;
-                }
-                else
-                {
-                    Serial.println("ACK ERROR");
-                    count_decoder  = 0;
-                    STATE_DEC = ACK_ERROR;             
-                }*/
-                } 
-            break;
-
-            case ACK_DELIMITER:
-                if(count_decoder == L_BIT)
-                {
-                //CRC Checked = CRC_READ
-                //Concatenar campos
-                Serial.print("VETOR FRAME: ");
-                Serial.println(Vetor_Frame);
-                Serial.print("STRLEN: ");
-                Serial.println(strlen(Vetor_Frame));
-                Resultado_CRC = MakeCRC(Vetor_Frame);
-                
-                for(int j = 0; j < 15; j++)
-                {
-                    //Serial.print(Resultado_CRC[j]);
-                    if(Resultado_CRC[j] != Vetor_CRC[j])
                     {
-                    CRC_FLAG = false;
+                        count_decoder = 0;
+                        STATE_DEC = FORMAT_ERROR;
                     }
-
-                }
-
-                if(CRC_FLAG)
-                {
-                    Serial.println("CRC Checked");
-                }
-                else
-                {
-                    Serial.println("CRC ERROR");
-                    STATE_DEC = CRC_ERROR;
-                }
-
-                BSD_FLAG = false;
-                if(BIT_TO_SAVE == '1')
-                { 
-                    Serial.println("ACK_DELIMITER bts 1");
-                    count_decoder  = 0;
-                    STATE_DEC = EoF;
-                }
-                else
-                {
-                    Serial.println("ACK_DELIMITER FORMAT ERROR");
-                    count_decoder  = 0;
-                    STATE_DEC = FORMAT_ERROR;       
-                }                
-                    
-                } 
-            break;
-
-            case EoF:
-            Serial.print("Eof  entrada");
-            Serial.println(BIT_TO_SAVE);
-
-            if(BIT_TO_SAVE == '1')
-            {
-                Serial.println("DEPOIS DO IF EOF");
-                if(count_decoder == L_EOF)
-                {
                 
-                    Serial.println("EOF");
-                    count_decoder  = 0;          
-                    STATE_DEC = INTERFRAME_SPACING;
-                    
-                }
-            }
-            else
-            {
-                Serial.println("Else Eof");
-                count_decoder = 0;
-                STATE_DEC = FORMAT_ERROR;
-            }
-            
-            break;
+                break;
 
-            case INTERFRAME_SPACING:
-                Serial.println(BIT_TO_SAVE);
-                
-            if(BIT_TO_SAVE == '1')
-            {
-                if(count_decoder == L_INTERFRAME_SPACING)
+                case INTERFRAME_SPACING:
+                    //Serial.println(BIT_TO_SAVE);
+                    
+                    if(BIT_TO_SAVE == '1')
                     {
-                        //print_frame(Data_Flag,Extended_Flag,Vetor_ID_A,Vetor_ID_B,Value_DLC,Vetor_DATA,Vetor_CRC);
-                        Serial.print("FRAME COM BS: ");
-                        Serial.println(Frame_dec);
-                        Serial.print("FRAME SEM BS: ");
-                        Serial.println(Frame_decnbs);
-                        Serial.println("INTERFRAME_SPACING");
-                        BUS_IDLE_FLAG  = true;
+                        if(count_decoder == L_INTERFRAME_SPACING)
+                            {
+                                BUS_IDLE_FLAG  = true;
+                                BED_FLAG = false;
+                                count_decoder  = 0;
+                                STATE_DEC = BUS_IDLE;
+                                ERROR_FLAG = false;
+                                BED_FLAG = false;
+                                ACK_FLAG = false;
+                                OVERLOAD_FLAG = false;
+                                ID_B_FLAG = true;
+                                CRC_FLAG = true;
+                                aux_count = 0;
+                                Data_Flag = 0;
+                                Remote_Flag = 0;
+                                Extended_Flag = 0; // 0-> Base || 1 -> Extended
+                                count_frame = 0;
+
+                                Value_ID_A = 0;
+                                Value_DLC = 0;
+                                Value_ID_B = 0;
+                                Value_CRC = 0;
+                                error_count = 0;
+                                error_12 = false;
+                                count_6_12 = 0;
+                                OVERLOAD_FLAG_1 = false;
+                            }
+                    }
+                    else if(BIT_TO_SAVE == '0')
+                    {
+                        if(count_decoder > 1)
+                        {
+                            Serial.print("INTERFRAME_SPACING:");
+                            Serial.print(count_decoder-1);
+                            Serial.println("Bit(s)");
+                        }  
+                        OVERLOAD_FLAG_1 = true;
+                        BUS_IDLE_FLAG = true;
+                        count_decoder = 0;
+                        Serial.println("SoF");
+                        BSD_FLAG = true;
                         BED_FLAG = false;
-                        count_decoder  = 0;
                         STATE_DEC = BUS_IDLE;
-                        Frame_dec = "";
+                    }       
+                break;
+                
+                //Error States
+
+                case STATE_ERROR:
+                    //Serial.println("STATE_ERROR");
+                    OVERLOAD_FLAG = false;
+                    OVERLOAD_FLAG_1 = false;
+                    BSD_FLAG = false;
+                    error_count += 1;
+                    count_frame = 0;
+                    
+                    if(BIT_TO_SAVE == '0' && error_count <= 6)
+                    {
+                        if(count_decoder == 6)
+                        {
+                            error_count = 0;
+                            count_decoder = 0;
+                            count_6_12 += 1;
+                            error_12 = true;
+                        }
+                    }
+                    else if(BIT_TO_SAVE == '1' && error_count <= 8 && error_12 == true)
+                    {
+                        if(count_decoder == 8)
+                        {
+                        error_12 = false;
                         ERROR_FLAG = false;
                         BED_FLAG = false;
-                        ACK_FLAG = false;
-                        OVERLOAD_FLAG = false;
-                        ID_B_FLAG = true;
-                        CRC_FLAG = true;
-                        aux_count = 0;
-                        Data_Flag = 0;
-                        Remote_Flag = 0;
-                        Extended_Flag = 0; // 0-> Base || 1 -> Extended
-                        count_frame = 0;
-
-                        Value_ID_A = 0;
-                        Value_DLC = 0;
-                        Value_ID_B = 0;
-                        Value_CRC = 0;
-                        Vetor_CRC[0] = '\0';
-                        free(Resultado_CRC);
-                        //Resultado_CRC = NULL;
-                        for(int i = 0; i<133;i++){
-                            Vetor_Frame[i] = '\0';
-                        }
-
+                        count_decoder = 0;
                         error_count = 0;
-                        error_12 = false;
-                        count_6_12 = 0;
-                        OVERLOAD_FLAG_1 = false;
-                    }
-            }
-            else if(BIT_TO_SAVE == '0')
-            {
-                if(count_decoder > 1)
-                {
-                Serial.print("INTERFRAME_SPACING:");
-                Serial.print(count_decoder-1);
-                Serial.println("Bit(s)");
-                }  
-                OVERLOAD_FLAG_1 = true;
-                BUS_IDLE_FLAG = true;
-                //SoF_FLAG = true;
-                count_decoder = 0;
-                Serial.println("SoF");
-                BSD_FLAG = true;
-                BED_FLAG = false;
-                STATE_DEC = BUS_IDLE;
-            }       
-            break;
-            
-            //Error States
 
-            case STATE_ERROR:
-                //Serial.println("STATE_ERROR");
-                OVERLOAD_FLAG = false;
-                OVERLOAD_FLAG_1 = false;
-                //Serial.print(BIT_TO_SAVE);
-                BSD_FLAG = false;
-                error_count += 1;
-                count_frame = 0;
-                
-                if(BIT_TO_SAVE == '0' && error_count <= 6)
-                {
-                    //Serial.print("count_decoder: ");
-                    //Serial.println(count_decoder);
-                    if(count_decoder == 6)
-                    {
+                        if(count_6_12 == 1)
+                        {
+                            Serial.println("Error Frame (com 6 bits zeros no error flag)");
+                            count_6_12 = 0;
+                        }
+                        else if(count_6_12 == 2)
+                        {
+                            Serial.println("Error Frame (com 12 bits zeros no error flag)");
+                            count_6_12 = 0;
+                        }
+                        if(ERROR_FLAG)
+                        {
+                            STATE_DEC = STATE_ERROR;
+                        }
+                        else
+                        {
+                            STATE_DEC = INTERFRAME_SPACING;
+                        }
+                        }
+                    }
+
+                break;
+
+                case FORMAT_ERROR:
+                    
+                    ERROR_FLAG = true;
                     error_count = 0;
-                    count_decoder = 0;
-                    count_6_12 += 1;
-                    error_12 = true;
-                    }
-                }
-                else if(BIT_TO_SAVE == '1' && error_count <= 8 && error_12 == true)
-                {
-                    //Serial.print(BIT_TO_SAVE);
-                
-                    if(count_decoder == 8)
-                    {
-                    error_12 = false;
-                    ERROR_FLAG = false;
-                    BED_FLAG = false;
-                    count_decoder = 0;
+                    Serial.println("FORMAT_ERROR");
+                    STATE_DEC = STATE_ERROR;// come um bit
+                        
+                break;
+
+                case ACK_ERROR:
+                    
+                    ERROR_FLAG = true;
                     error_count = 0;
+                    Serial.println("ACK_ERROR");  
+                    STATE_DEC = STATE_ERROR;
+                        
+                break;
 
-                    if(count_6_12 == 1)
-                    {
-                        Serial.println("Error Frame (com 6 bits zeros no error flag)");
-                        count_6_12 = 0;
-                    }
-                    else if(count_6_12 == 2)
-                    {
-                        Serial.println("Error Frame (com 12 bits zeros no error flag)");
-                        count_6_12 = 0;
-                    }
-                    if(ERROR_FLAG)
-                    {
-                        STATE_DEC = STATE_ERROR;
-                    }
-                    else
-                    {
-                        STATE_DEC = INTERFRAME_SPACING;
-                    }
-                    }
-                }
+                case CRC_ERROR:
 
-            break;
+                    ERROR_FLAG = true;
+                    error_count = 0;
+                    Serial.println("CRC_ERROR");  
+                    STATE_DEC = STATE_ERROR;
+                        
+                break;
 
-            case FORMAT_ERROR:
-                
-                ERROR_FLAG = true;
-                error_count = 0;
-                Serial.println("FORMAT_ERROR");
-                //Serial.print(BIT_TO_SAVE);
-                STATE_DEC = STATE_ERROR;// come um bit
-                    
-            break;
+                case OVERLOAD:
 
-            case ACK_ERROR:
-                
-                ERROR_FLAG = true;
-                error_count = 0;
-                Serial.println("ACK_ERROR");  
-                STATE_DEC = STATE_ERROR;
-                    
-            break;
-
-            case CRC_ERROR:
-
-                ERROR_FLAG = true;
-                error_count = 0;
-                Serial.println("CRC_ERROR");  
-                STATE_DEC = STATE_ERROR;
-                    
-            break;
-
-            case OVERLOAD:
-
-                OVERLOAD_FLAG = true;
-                error_count = 0;
-                Serial.println("OVERLOAD");  
-                STATE_DEC = STATE_ERROR;
-                    
-            break;
-            //Error States
+                    OVERLOAD_FLAG = true;
+                    error_count = 0;
+                    Serial.println("OVERLOAD");  
+                    STATE_DEC = STATE_ERROR;
+                        
+                break;
+                //Error States    
             }
             count_decoder++;
         }
     }
-
 
 //Decoder END
 
@@ -1094,10 +1018,10 @@
        // Serial.println(CAN_RX);
 
         if(CAPTURE){
-            Frame_decnbs.concat(CAN_RX);
+            //Frame_decnbs.concat(CAN_RX);
            // Serial.println(BIT_TO_SAVE);
         }
-            Frame_dec.concat(CAN_RX);
+            //Frame_dec.concat(CAN_RX);
         // Serial.print("capture: ");
         //Serial.println(CAPTURE);
         UC_DECODER();
@@ -1163,7 +1087,7 @@
                     CAN_RX = mySerial.read();//Capturar do barramento
                 //Serial.print("CAN_RX = ");
                 //Serial.println(CAN_RX);
-                Frame_dec.concat(CAN_RX);
+                //Frame_dec.concat(CAN_RX);
                 func_sample_point();
              }
                 else{
