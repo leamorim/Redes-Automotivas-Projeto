@@ -1022,10 +1022,10 @@
       case ID_A:        // 1 - 11 position
         if(!ARBITRATION_LOSS){
           if(Ecount < 11){
-            Frame[Ecount] = ID[Ecount];
+            Frame[Ecount] = ID[Ecount-1];
           }
           else {
-            Frame[Ecount] = ID[Ecount];
+            Frame[Ecount] = ID[Ecount-1];
             STATE_ENC = SRR;
           }
         }
@@ -1512,7 +1512,7 @@
     pinMode(CAN_RX_PIN,INPUT);
 
     //Comunicação Serial
-    //  pinMode(CAN_RX_PIN,INPUT);
+     // pinMode(CAN_RX_PIN,INPUT);
     //  pinMode(CAN_TX_PIN,OUTPUT);
      mySerial.begin(115200);
     Serial.println("Digite 'b' para base frame e 'e' para extended frame" );
