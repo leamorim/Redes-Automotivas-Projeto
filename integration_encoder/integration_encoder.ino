@@ -675,10 +675,10 @@
       case ID_A:
         if(!ARBITRATION_LOSS){
           if(Ecount < 11){
-            Frame[Ecount] = ID[Ecount];
+            Frame[Ecount] = ID[Ecount-1];
           }
           else {
-            Frame[Ecount] = ID[Ecount];
+            Frame[Ecount] = ID[Ecount-1];
             STATE_ENC = RTR;
           }
         }
@@ -825,10 +825,10 @@
       case ID_A:        // 1 - 11 position
         if(!ARBITRATION_LOSS){
             if(Ecount < 11){
-              Frame[Ecount] = ID[Ecount];
+              Frame[Ecount] = ID[Ecount-1];
             }
             else {
-              Frame[Ecount] = ID[Ecount];
+              Frame[Ecount] = ID[Ecount-1];
               STATE_ENC = SRR;
             }
           }
@@ -1378,16 +1378,16 @@
          //digitalWrite(CAN_TX_PIN,HIGH);
           mySerial.write(CAN_TX);
           //Serial.print(mySerial.write(CAN_TX));
-       //   Serial.print(" CAN_TX == ");
-       //   Serial.println(CAN_TX);
+          Serial.print(" CAN_TX == ");
+          Serial.println(CAN_TX);
          Frame_enc.concat(CAN_TX);
         }
         else if(CAN_TX == '1'){
          // digitalWrite(CAN_TX_PIN,LOW);
           mySerial.write(CAN_TX);
           //Serial.print(mySerial.write(CAN_TX));
-        //  Serial.print(" CAN_TX == ");
-       //  Serial.println(CAN_TX);
+          Serial.print(" CAN_TX == ");
+         Serial.println(CAN_TX);
           Frame_enc.concat(CAN_TX);
         }   
 
